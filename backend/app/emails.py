@@ -24,7 +24,9 @@ def send_onboarding_email(to_email: str, parent_name: str, token: str):
                 margin: 16px 0;
                 ">Set Up My Account</a>
                 <p>If you did not expect this email, please ignore it.</p>
-                <p>- JMR Portal Team</p>
+                <p>Best Regards,</p>
+                <p>Umi Apak</p>
+                <p>01111797324</p>
         </div>
         """
     })
@@ -50,7 +52,9 @@ def send_password_reset_email(to_email: str, name: str, token: str):
                     margin: 16px 0;
                     ">Reset My Password</a>
                     <p>If you did not request a password reset, please ignore this email.</p>
-                    <p>- JMR Portal Team</p>
+                    <p>Best Regards,</p>
+                    <p>Umi Apak</p>
+                    <p>01111797324</p>
             </div>
         """
     })

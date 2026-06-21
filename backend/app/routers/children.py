@@ -48,11 +48,13 @@ def _attach_services(cursor, children: list) -> list:
 
 class ServiceTypeCreate(BaseModel):
     name: str
+    description: Optional[str] = None
     monthly_fee: float
     registration_fee: float
 
 class ServiceTypeUpdate(BaseModel):
     name: Optional[str] = None
+    description: Optional[str] = None
     monthly_fee: Optional[float] = None
     registration_fee: Optional[float] = None
 
@@ -78,8 +80,8 @@ def create_service_type(data: ServiceTypeCreate, conn=Depends(get_db), current_u
         if cursor.fetchone():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A service with this name already exists.")
         cursor.execute(
-            "INSERT INTO service_types (name, monthly_fee, registration_fee) VALUES (%s, %s, %s) RETURNING id",
-            (data.name, data.monthly_fee, data.registration_fee)
+            "INSERT INTO service_types (name, description, monthly_fee, registration_fee) VALUES (%s, %s, %s, %s) RETURNING id",
+            (data.name, data.description or None, data.monthly_fee, data.registration_fee)
         )
         service_id = cursor.fetchone()["id"]
         conn.commit()
@@ -105,10 +107,11 @@ def update_service_type(service_id: int, data: ServiceTypeUpdate, conn=Depends(g
         cursor.execute(
             """UPDATE service_types SET
                name = COALESCE(%s, name),
+               description = %s,
                monthly_fee = COALESCE(%s, monthly_fee),
                registration_fee = COALESCE(%s, registration_fee)
                WHERE id = %s""",
-            (data.name, data.monthly_fee, data.registration_fee, service_id)
+            (data.name, data.description or None, data.monthly_fee, data.registration_fee, service_id)
         )
         conn.commit()
         return {"message": "Service type updated successfully"}

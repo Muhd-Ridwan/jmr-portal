@@ -81,8 +81,14 @@ def get_users(conn=Depends(get_db), current_user=Depends(require_superadmin)):
     try:
         cursor = conn.cursor()
         cursor.execute(
-            """SELECT u.id, u.name, u.email, u.phone_num, u.address, u.created_at, r.name as role
-               FROM users u JOIN roles r ON u.role_id = r.id
+            """SELECT u.id, u.name, u.email, u.phone_num, u.address, u.created_at, r.name as role,
+                      (p.id IS NOT NULL) AS is_parent,
+                      p.id AS parent_id,
+                      (u.password IS NULL) AS needs_onboarding,
+                      p.is_active AS parent_is_active
+               FROM users u
+               JOIN roles r ON u.role_id = r.id
+               LEFT JOIN parents p ON p.user_id = u.id
                ORDER BY u.created_at DESC"""
         )
         return cursor.fetchall()

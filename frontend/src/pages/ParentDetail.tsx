@@ -19,6 +19,9 @@ import {
   Eye,
   EyeOff,
   X,
+  Upload,
+  Paperclip,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
@@ -33,6 +36,8 @@ import {
   createRegistrationPayment,
   getPendingPayments,
   getPaymentHistory,
+  getReceiptUploadUrl,
+  getReceiptUrl,
 } from "../api/payments";
 import type {
   ParentDetail as ParentDetailType,
@@ -349,11 +354,13 @@ function AddChildModal({
 function RecordPaymentModal({
   parentId,
   activeChildren,
+  pendingMap,
   onClose,
   onSaved,
 }: {
   parentId: number;
   activeChildren: Child[];
+  pendingMap: Record<number, PendingPayments>;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -365,7 +372,35 @@ function RecordPaymentModal({
     "cash",
   );
   const [notes, setNotes] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadedReceiptKey, setUploadedReceiptKey] = useState<
+    string | undefined
+  >(undefined);
   const [saving, setSaving] = useState(false);
+
+  function getContentType(filename: string): string {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    const map: Record<string, string> = {
+      pdf: "application/pdf",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+    };
+    return map[ext ?? ""] ?? "application/octet-stream";
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = [".pdf", ".png", ".jpg", ".jpeg"];
+    const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+    if (!allowed.includes(ext)) {
+      toast.error("Only PDF, PNG, and JPG files are allowed");
+      e.target.value = "";
+      return;
+    }
+    setReceiptFile(file);
+  }
 
   function toggleChild(child: Child) {
     setChildMonths((prev) => {
@@ -374,11 +409,33 @@ function RecordPaymentModal({
         delete next[child.id];
         return next;
       }
-      return {
-        ...prev,
-        [child.id]: [{ month: now.getMonth() + 1, year: now.getFullYear() }],
-      };
+      const pendingMonths = pendingMap[child.id]?.pending_months ?? [];
+      const defaultMonths =
+        pendingMonths.length > 0
+          ? pendingMonths.map((m) => ({ month: m.month, year: m.year }))
+          : [{ month: now.getMonth() + 1, year: now.getFullYear() }];
+      return { ...prev, [child.id]: defaultMonths };
     });
+  }
+
+  function isAlreadyPaid(
+    childId: number,
+    month: number,
+    year: number,
+  ): boolean {
+    const pending = pendingMap[childId]?.pending_months ?? [];
+    const child = activeChildren.find((c) => c.id === childId);
+    if (!child) return false;
+    const start = new Date(child.created_at);
+    const today = new Date();
+    const afterStart =
+      year > start.getFullYear() ||
+      (year === start.getFullYear() && month >= start.getMonth() + 1);
+    const beforeOrNow =
+      year < today.getFullYear() ||
+      (year === today.getFullYear() && month <= today.getMonth() + 1);
+    if (!afterStart || !beforeOrNow) return false;
+    return !pending.some((m) => m.month === month && m.year === year);
   }
 
   function addMonth(childId: number) {
@@ -431,12 +488,31 @@ function RecordPaymentModal({
   const total = fee_payments.reduce((sum, p) => sum + p.amount, 0);
 
   async function handleSubmit() {
+    if (saving) return;
     if (fee_payments.length === 0) {
       toast.error("Select at least one child and month");
       return;
     }
     setSaving(true);
     try {
+      let receipt_key = uploadedReceiptKey;
+      if (receiptFile && !receipt_key) {
+        const contentType =
+          receiptFile.type || getContentType(receiptFile.name);
+        const { upload_url, key } = await getReceiptUploadUrl(
+          receiptFile.name,
+          contentType,
+        );
+        const uploadRes = await fetch(upload_url, {
+          method: "PUT",
+          body: receiptFile,
+          headers: { "Content-Type": contentType },
+        });
+        if (!uploadRes.ok)
+          throw new Error("Failed to upload receipt to storage");
+        receipt_key = key;
+        setUploadedReceiptKey(key);
+      }
       await createPaymentSession({
         parent_id: parentId,
         total_amount: total,
@@ -444,6 +520,7 @@ function RecordPaymentModal({
         notes: notes.trim() || undefined,
         paid_at: new Date().toISOString(),
         fee_payments,
+        receipt_key,
       });
       toast.success("Payment recorded");
       onSaved();
@@ -496,40 +573,54 @@ function RecordPaymentModal({
 
               {selected && (
                 <div className="px-4 py-3 space-y-2 bg-surface">
-                  {months.map((m, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <select
-                        value={m.month}
-                        onChange={(e) =>
-                          updateMonth(child.id, idx, "month", +e.target.value)
-                        }
-                        className="flex-1 px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
-                      >
-                        {MONTH_NAMES.map((name, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                      <Input
-                        type="number"
-                        value={m.year}
-                        onChange={(e) =>
-                          updateMonth(child.id, idx, "year", +e.target.value)
-                        }
-                        className="w-24 text-xs py-1.5"
-                      />
-                      <span className="text-xs text-white/40 shrink-0">
-                        RM {child.monthly_fee}
-                      </span>
-                      <button
-                        onClick={() => removeMonth(child.id, idx)}
-                        className="text-white/30 hover:text-red-400 transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                  {months.map((m, idx) => {
+                    const alreadyPaid = isAlreadyPaid(
+                      child.id,
+                      m.month,
+                      m.year,
+                    );
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={m.month}
+                          onChange={(e) =>
+                            updateMonth(child.id, idx, "month", +e.target.value)
+                          }
+                          className="flex-1 px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
+                        >
+                          {MONTH_NAMES.map((name, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                        <Input
+                          type="number"
+                          value={m.year}
+                          onChange={(e) =>
+                            updateMonth(child.id, idx, "year", +e.target.value)
+                          }
+                          className="w-24 text-xs py-1.5"
+                        />
+                        {alreadyPaid ? (
+                          <span className="flex items-center gap-0.5 text-xs text-amber-400 shrink-0">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            Paid
+                          </span>
+                        ) : (
+                          <span className="text-xs text-white/40 shrink-0">
+                            RM {child.monthly_fee}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeMonth(child.id, idx)}
+                          className="text-white/30 hover:text-red-400 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
                   <button
                     onClick={() => addMonth(child.id)}
                     className="inline-flex items-center gap-1 text-xs text-[#86efac] hover:text-white transition-colors"
@@ -569,6 +660,36 @@ function RecordPaymentModal({
               onChange={(e) => setNotes(e.target.value)}
             />
           </FormField>
+          <FormField label="Receipt">
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-surface-raised bg-surface-raised cursor-pointer hover:bg-[#4a7a57]/40 transition-colors flex-1 min-w-0">
+                <Upload className="w-4 h-4 text-white/30 shrink-0" />
+                <span className="text-sm text-white/50 flex-1 truncate min-w-0">
+                  {receiptFile
+                    ? receiptFile.name
+                    : "Attach receipt (PDF, PNG, JPG)"}
+                </span>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  className="sr-only"
+                  onChange={handleFileChange}
+                />
+              </label>
+              {receiptFile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptFile(null);
+                    setUploadedReceiptKey(undefined);
+                  }}
+                  className="p-2 text-white/30 hover:text-red-400 transition-colors shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </FormField>
         </div>
 
         {total > 0 && (
@@ -579,6 +700,62 @@ function RecordPaymentModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+// ── Receipt Preview Modal ─────────────────────────────────────────────────────
+
+function ReceiptPreviewModal({
+  url,
+  isPdf,
+  onClose,
+}: {
+  url: string;
+  isPdf: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative bg-surface border border-surface-raised rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-surface-raised shrink-0">
+          <span className="text-sm font-medium text-white/70">Receipt</span>
+          <button
+            onClick={onClose}
+            className="text-white/30 hover:text-white/70 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {isPdf ? (
+          <iframe
+            src={url}
+            title="Receipt"
+            className="w-full"
+            style={{ height: "75vh" }}
+          />
+        ) : (
+          <div
+            className="flex items-center justify-center p-4 overflow-auto"
+            style={{ maxHeight: "75vh" }}
+          >
+            <img
+              src={url}
+              alt="Receipt"
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -606,6 +783,10 @@ export default function ParentDetail() {
   const [showAddChild, setShowAddChild] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [includingInactive, setIncludingInactive] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState<{
+    url: string;
+    isPdf: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (user && user.role === "user") navigate("/dashboard", { replace: true });
@@ -703,6 +884,17 @@ export default function ParentDetail() {
         }
       />
 
+      {/* Inactive banner */}
+      {!parent.is_active && (
+        <div className="bg-red-900/20 border border-red-500/30 rounded-xl px-5 py-3 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">
+            This parent is inactive. All children have been deactivated and the
+            parent cannot log in.
+          </p>
+        </div>
+      )}
+
       {/* Parent Info */}
       <div className="bg-surface border border-surface-raised rounded-xl p-6">
         <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">
@@ -746,17 +938,18 @@ export default function ParentDetail() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setIncludingInactive((v) => !v)}
-              className="flex items-center gap-1.5 text-xs text-white/50 border border-white/15 rounded-md px-2.5 py-1 hover:text-white/70 hover:border-white/30 transition-colors"
             >
               {includingInactive ? (
-                <EyeOff className="w-3 h-3" />
+                <EyeOff className="w-3.5 h-3.5" />
               ) : (
-                <Eye className="w-3 h-3" />
+                <Eye className="w-3.5 h-3.5" />
               )}
               {includingInactive ? "Hide inactive" : "Show inactive"}
-            </button>
+            </Button>
             <Button size="sm" onClick={() => setShowAddChild(true)}>
               <Plus className="w-3.5 h-3.5" />
               Add Child
@@ -808,12 +1001,13 @@ export default function ParentDetail() {
                             )
                             .toFixed(2)}
                         </span>
-                        <button
+                        <Button
+                          variant="warning"
+                          size="sm"
                           onClick={() => handlePayRegistration(child)}
-                          className="text-xs px-2 py-0.5 rounded font-medium bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20 hover:border-amber-400/60 hover:text-amber-200 transition-all"
                         >
                           Pay now
-                        </button>
+                        </Button>
                       </div>
                     ) : (
                       <div className="mt-1.5 flex items-center gap-1 text-xs text-emerald-400/70">
@@ -839,13 +1033,15 @@ export default function ParentDetail() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleToggleActive(child)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      className={
                         child.is_active
-                          ? "bg-surface-raised text-white/60 hover:text-red-400"
-                          : "bg-surface-raised text-white/40 hover:text-[#86efac]"
-                      }`}
+                          ? "hover:!text-red-400"
+                          : "hover:!text-[#86efac]"
+                      }
                     >
                       {child.is_active ? (
                         <>
@@ -858,7 +1054,7 @@ export default function ParentDetail() {
                           Inactive
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );
@@ -982,6 +1178,9 @@ export default function ParentDetail() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 text-white/30">
+                        {session.receipt_key && (
+                          <Paperclip className="w-3.5 h-3.5 text-white/40" />
+                        )}
                         <Calendar className="w-3.5 h-3.5" />
                         {expandedSession === session.id ? (
                           <ChevronUp className="w-4 h-4" />
@@ -1014,6 +1213,54 @@ export default function ParentDetail() {
                             Note: {session.notes}
                           </p>
                         )}
+                        {session.receipt_key && (
+                          <div className="flex items-center gap-2 pt-2 border-t border-surface-raised/50">
+                            <Paperclip className="w-3 h-3 text-white/30 shrink-0" />
+                            <span className="text-xs text-white/30 flex-1">
+                              Receipt attached
+                            </span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { url } = await getReceiptUrl(
+                                    session.id,
+                                  );
+                                  const ext = session.receipt_key
+                                    ?.split(".")
+                                    .pop()
+                                    ?.toLowerCase();
+                                  setReceiptPreview({
+                                    url,
+                                    isPdf: ext === "pdf",
+                                  });
+                                } catch {
+                                  toast.error("Failed to load receipt");
+                                }
+                              }}
+                              className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Preview
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { url } = await getReceiptUrl(
+                                    session.id,
+                                    true,
+                                  );
+                                  window.open(url, "_blank");
+                                } catch {
+                                  toast.error("Failed to download receipt");
+                                }
+                              }}
+                              className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1043,8 +1290,16 @@ export default function ParentDetail() {
         <RecordPaymentModal
           parentId={parentId}
           activeChildren={activeChildren}
+          pendingMap={pendingMap}
           onClose={() => setShowPayment(false)}
           onSaved={load}
+        />
+      )}
+      {receiptPreview && (
+        <ReceiptPreviewModal
+          url={receiptPreview.url}
+          isPdf={receiptPreview.isPdf}
+          onClose={() => setReceiptPreview(null)}
         />
       )}
     </div>

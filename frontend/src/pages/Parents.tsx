@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Eye, Phone } from "lucide-react";
+import { Plus, Trash2, Eye, Phone, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
 import { getParents, createParent, deleteParent } from "../api/parents";
@@ -36,6 +36,7 @@ export default function Parents() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   useEffect(() => {
     if (user && user.role === "user") navigate("/dashboard", { replace: true });
@@ -43,12 +44,12 @@ export default function Parents() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [includeInactive]);
 
   async function load() {
     setLoading(true);
     try {
-      const data = (await getParents()) as Parent[];
+      const data = (await getParents(includeInactive)) as Parent[];
       setParents(data);
     } catch (err) {
       toast.error((err as Error).message);
@@ -128,7 +129,18 @@ export default function Parents() {
       header: "Name",
       key: "parent_name",
       render: (row: Parent) => (
-        <span className="font-medium text-white">{row.parent_name}</span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`font-medium ${row.is_active ? "text-white" : "text-white/40"}`}
+          >
+            {row.parent_name}
+          </span>
+          {!row.is_active && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-surface-raised text-white/30">
+              Inactive
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -194,10 +206,24 @@ export default function Parents() {
         description="Manage registered parents and their children."
         backTo={{ label: "Dashboard", to: "/dashboard" }}
         action={
-          <Button onClick={() => setShowModal(true)}>
-            <Plus className="w-4 h-4" />
-            Add Parent
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIncludeInactive((v) => !v)}
+            >
+              {includeInactive ? (
+                <EyeOff className="w-3.5 h-3.5" />
+              ) : (
+                <Eye className="w-3.5 h-3.5" />
+              )}
+              {includeInactive ? "Hide inactive" : "Show inactive"}
+            </Button>
+            <Button onClick={() => setShowModal(true)}>
+              <Plus className="w-4 h-4" />
+              Add Parent
+            </Button>
+          </div>
         }
       />
 

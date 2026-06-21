@@ -1,5 +1,16 @@
 import { apiFetch } from "./client";
-import type { PendingPayments, OverdueEntry, PaymentHistory } from "../types";
+import type {
+  PendingPayments,
+  OverdueEntry,
+  PaymentHistory,
+  UnregisteredChild,
+} from "../types";
+
+export const getReceiptUploadUrl = (filename: string, content_type: string) =>
+  apiFetch("/payments/upload-url", {
+    method: "POST",
+    body: JSON.stringify({ filename, content_type }),
+  }) as Promise<{ upload_url: string; key: string }>;
 
 export const createPaymentSession = (data: {
   parent_id: number;
@@ -7,6 +18,7 @@ export const createPaymentSession = (data: {
   payment_method: string;
   notes?: string;
   paid_at: string;
+  receipt_key?: string;
   fee_payments: {
     child_id: number;
     month: number;
@@ -37,3 +49,14 @@ export const getPaymentHistory = (parentId: number) =>
 
 export const getOverduePayments = () =>
   apiFetch("/payments/overdue") as Promise<OverdueEntry[]>;
+
+export const getMyOverduePayments = () =>
+  apiFetch("/payments/overdue/me") as Promise<OverdueEntry[]>;
+
+export const getUnpaidRegistrations = () =>
+  apiFetch("/payments/registration/unpaid") as Promise<UnregisteredChild[]>;
+
+export const getReceiptUrl = (sessionId: number, download = false) =>
+  apiFetch(
+    `/payments/session/${sessionId}/receipt?download=${download}`,
+  ) as Promise<{ url: string }>;

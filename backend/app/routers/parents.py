@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from psycopg2 import errors as pg_errors
 from app.database import get_db
-from app.routers.dependencies import require_admin, require_superadmin
+from app.routers.dependencies import require_admin, require_superadmin, get_current_user
 from app.routers.children import _attach_services
 from app.emails import send_onboarding_email
 import secrets
@@ -40,14 +40,48 @@ class ParentUpdate(BaseModel):
         return v
 
 @router.get("/")
-def get_parents(conn=Depends(get_db), current_user=Depends(require_admin)):
+def get_parents(include_inactive: bool = False, conn=Depends(get_db), current_user=Depends(require_admin)):
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM parents ORDER BY parent_name")
+        if include_inactive:
+            cursor.execute("SELECT * FROM parents ORDER BY parent_name")
+        else:
+            cursor.execute("SELECT * FROM parents WHERE is_active = TRUE ORDER BY parent_name")
         return cursor.fetchall()
     except Exception:
         logger.exception("Failed to retrieve parents")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve parents. Please try again.")
+
+@router.get("/me")
+def get_my_profile(conn=Depends(get_db), current_user=Depends(get_current_user)):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM parents WHERE user_id = %s", (current_user["id"],))
+        parent = cursor.fetchone()
+        if not parent:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No parent profile linked to this account")
+
+        cursor.execute("SELECT * FROM phone_numbers WHERE parent_id = %s", (parent["id"],))
+        phones = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT * FROM children WHERE parent_id = %s AND is_active = TRUE ORDER BY name",
+            (parent["id"],)
+        )
+        children = _attach_services(cursor, cursor.fetchall())
+
+        enriched = []
+        for child in children:
+            cursor.execute("SELECT id FROM registration_payments WHERE child_id = %s", (child["id"],))
+            enriched.append({**child, "registration_paid": cursor.fetchone() is not None})
+
+        return {**parent, "phone_numbers": phones, "children": enriched}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to retrieve profile for user %s", current_user["id"])
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve your profile. Please try again.")
+
 
 @router.get("/{parent_id}")
 def get_parent(parent_id: int, include_inactive: bool = False, conn=Depends(get_db), current_user=Depends(require_admin)):
@@ -170,6 +204,31 @@ def delete_parent(parent_id: int, conn=Depends(get_db), current_user=Depends(req
         conn.rollback()
         logger.exception("Failed to delete parent %s", parent_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete parent. Please try again.")
+
+@router.patch("/{parent_id}/toggle-active")
+def toggle_parent_active(parent_id: int, conn=Depends(get_db), current_user=Depends(require_admin)):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, is_active FROM parents WHERE id = %s", (parent_id,))
+        parent = cursor.fetchone()
+        if not parent:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
+
+        new_status = not parent["is_active"]
+        cursor.execute("UPDATE parents SET is_active = %s WHERE id = %s", (new_status, parent_id))
+
+        if not new_status:
+            cursor.execute("UPDATE children SET is_active = FALSE WHERE parent_id = %s", (parent_id,))
+
+        conn.commit()
+        action = "activated" if new_status else "deactivated"
+        return {"message": f"Parent {action} successfully", "is_active": new_status}
+    except HTTPException:
+        raise
+    except Exception:
+        conn.rollback()
+        logger.exception("Failed to toggle status for parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update parent status. Please try again.")
 
 @router.post("/{parent_id}/send-onboarding")
 def send_onboarding(parent_id: int, conn=Depends(get_db), current_user=Depends(require_superadmin)):

@@ -60,6 +60,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), conn=Depends(get_db)
         if not bcrypt.checkpw(form_data.password.encode(), user["password"].encode()):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+        cursor.execute("SELECT is_active FROM parents WHERE user_id = %s", (user["id"],))
+        parent = cursor.fetchone()
+        if parent and not parent["is_active"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account has been deactivated. Please contact the administrator.")
+
         payload = {"sub": str(user["id"]), "email": user["email"], "name": user["name"], "role": user["role"]}
         access_token = create_access_token(payload)
         refresh_token = create_refresh_token(payload)

@@ -13,6 +13,7 @@ export const toggleServiceTypeStatus = (id: number, is_active: boolean) =>
 
 export const createServiceType = (data: {
   name: string;
+  description?: string;
   monthly_fee: number;
   registration_fee: number;
 }) =>
@@ -25,6 +26,7 @@ export const updateServiceType = (
   id: number,
   data: {
     name?: string;
+    description?: string;
     monthly_fee?: number;
     registration_fee?: number;
   },

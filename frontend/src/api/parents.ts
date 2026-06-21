@@ -1,7 +1,13 @@
 import { apiFetch } from "./client";
 import type { Parent, ParentDetail } from "../types";
 
-export const getParents = () => apiFetch("/parents/") as Promise<Parent[]>;
+export const getMyProfile = () =>
+  apiFetch("/parents/me") as Promise<ParentDetail>;
+
+export const getParents = (includeInactive = false) =>
+  apiFetch(
+    `/parents/${includeInactive ? "?include_inactive=true" : ""}`,
+  ) as Promise<Parent[]>;
 
 export const getParent = (id: number, includeInactive = false) =>
   apiFetch(
@@ -30,3 +36,9 @@ export const deleteParent = (id: number) =>
 
 export const sendOnboarding = (id: number) =>
   apiFetch(`/parents/${id}/send-onboarding`, { method: "POST" });
+
+export const toggleParentStatus = (id: number) =>
+  apiFetch(`/parents/${id}/toggle-active`, { method: "PATCH" }) as Promise<{
+    message: string;
+    is_active: boolean;
+  }>;

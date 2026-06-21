@@ -16,10 +16,6 @@ import Button from "../components/Button";
 import FormField from "../components/FormField";
 import Input from "../components/Input";
 
-function formatName(name: string) {
-  return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 // ── Service Modal (shared for add + edit) ─────────────────────────────────────
 
 function ServiceModal({
@@ -34,17 +30,13 @@ function ServiceModal({
   const isEdit = !!service;
   const [form, setForm] = useState({
     name: service?.name ?? "",
+    description: service?.description ?? "",
     monthly_fee: service?.monthly_fee?.toString() ?? "",
     registration_fee: service?.registration_fee?.toString() ?? "",
   });
   const [saving, setSaving] = useState(false);
 
-  const hasSymbol = /[^a-z0-9_]/.test(form.name);
-
-  function handleNameChange(raw: string) {
-    const cleaned = raw.toLowerCase().replace(/ /g, "_");
-    setForm((f) => ({ ...f, name: cleaned }));
-  }
+  const hasSymbol = /[^a-zA-Z0-9\s+\-&().\/,']/.test(form.name);
 
   async function handleSave() {
     if (!form.name.trim()) {
@@ -71,6 +63,7 @@ function ServiceModal({
       if (isEdit) {
         const result = (await updateServiceType(service!.id, {
           name: form.name.trim(),
+          description: form.description.trim() || undefined,
           monthly_fee: monthly,
           registration_fee: registration,
         })) as { message: string };
@@ -78,6 +71,7 @@ function ServiceModal({
       } else {
         const result = (await createServiceType({
           name: form.name.trim(),
+          description: form.description.trim() || undefined,
           monthly_fee: monthly,
           registration_fee: registration,
         })) as { message: string };
@@ -111,18 +105,27 @@ function ServiceModal({
         <FormField label="Service Name" required>
           <Input
             type="text"
-            placeholder="e.g. quran_only"
+            placeholder="e.g. Quran Reading"
             value={form.name}
-            onChange={(e) => handleNameChange(e.target.value)}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             className={hasSymbol ? "border-red-500 focus:ring-red-500/40" : ""}
           />
-          <p
-            className={`text-xs mt-1 ${hasSymbol ? "text-red-400" : "text-white/30"}`}
-          >
-            {hasSymbol
-              ? "Symbols are not permitted. Use letters, numbers, and underscores only."
-              : "Spaces are converted to underscores automatically."}
-          </p>
+          {hasSymbol && (
+            <p className="text-xs mt-1 text-red-400">
+              Symbols like @, #, $, % are not permitted.
+            </p>
+          )}
+        </FormField>
+        <FormField label="Description">
+          <textarea
+            rows={3}
+            placeholder="Optional — e.g. includes Quran reading sessions"
+            value={form.description}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, description: e.target.value }))
+            }
+            className="w-full bg-surface-raised border border-surface-raised text-white rounded-lg px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
         </FormField>
         <FormField label="Monthly Fee (RM)" required>
           <Input
@@ -216,7 +219,7 @@ export default function Services() {
 
       <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
         {/* Desktop column headers */}
-        <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-surface-raised">
+        <div className="hidden sm:grid sm:grid-cols-[1fr_100px_120px_68px] px-6 py-3 border-b border-surface-raised">
           <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
             Service
           </span>
@@ -226,7 +229,6 @@ export default function Services() {
           <span className="text-xs font-semibold text-white/30 uppercase tracking-widest text-right">
             Registration
           </span>
-          <span />
           <span />
         </div>
 
@@ -248,7 +250,7 @@ export default function Services() {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-white">
-                          {formatName(s.name)}
+                          {s.name}
                         </p>
                         {!s.is_active && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-surface-raised text-white/30">
@@ -256,9 +258,11 @@ export default function Services() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-white/30 mt-0.5 font-mono">
-                        {s.name}
-                      </p>
+                      {s.description && (
+                        <p className="text-xs text-white/40 mt-0.5">
+                          {s.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -280,20 +284,24 @@ export default function Services() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setEditTarget(s)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white/60 bg-surface-raised hover:text-white transition-colors"
+                      className="flex-1 justify-center"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                       Edit
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleToggle(s)}
                       disabled={togglingId === s.id}
-                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      className={`flex-1 justify-center ${
                         s.is_active
-                          ? "text-white/60 bg-surface-raised hover:text-red-400"
-                          : "text-white/60 bg-surface-raised hover:text-[#86efac]"
+                          ? "!text-red-400 hover:!bg-red-900/20"
+                          : "!text-[#86efac] hover:!bg-primary/10"
                       }`}
                     >
                       {s.is_active ? (
@@ -307,61 +315,60 @@ export default function Services() {
                           Activate
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 {/* ── Desktop row ── */}
-                <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center px-6 py-4">
+                <div className="hidden sm:grid sm:grid-cols-[1fr_100px_120px_68px] items-center px-6 py-4 hover:bg-white/[0.03] transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white">
-                        {formatName(s.name)}
-                      </p>
+                      <p className="text-sm font-medium text-white">{s.name}</p>
                       {!s.is_active && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-surface-raised text-white/30">
                           Inactive
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-white/30 mt-0.5 font-mono">
-                      {s.name}
-                    </p>
+                    {s.description && (
+                      <p className="text-xs text-white/40 mt-0.5">
+                        {s.description}
+                      </p>
+                    )}
                   </div>
-                  <span className="text-sm text-white/70 text-right tabular-nums">
+                  <span className="text-sm tabular-nums text-white/70 text-right">
                     RM {Number(s.monthly_fee).toFixed(2)}
                   </span>
-                  <span className="text-sm text-white/70 text-right tabular-nums">
+                  <span className="text-sm tabular-nums text-white/70 text-right">
                     RM {Number(s.registration_fee).toFixed(2)}
                   </span>
-                  <button
-                    onClick={() => setEditTarget(s)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 bg-surface-raised hover:text-white transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleToggle(s)}
-                    disabled={togglingId === s.id}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      s.is_active
-                        ? "text-white/50 bg-surface-raised hover:text-red-400"
-                        : "text-white/50 bg-surface-raised hover:text-[#86efac]"
-                    }`}
-                  >
-                    {s.is_active ? (
-                      <>
-                        <ToggleRight className="w-3.5 h-3.5" />
-                        Deactivate
-                      </>
-                    ) : (
-                      <>
-                        <ToggleLeft className="w-3.5 h-3.5" />
-                        Activate
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => setEditTarget(s)}
+                      title="Edit service"
+                      className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleToggle(s)}
+                      disabled={togglingId === s.id}
+                      title={
+                        s.is_active ? "Deactivate service" : "Activate service"
+                      }
+                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${
+                        s.is_active
+                          ? "text-red-400 hover:bg-red-900/20"
+                          : "text-[#86efac] hover:bg-primary/10"
+                      }`}
+                    >
+                      {s.is_active ? (
+                        <ToggleRight className="w-4 h-4" />
+                      ) : (
+                        <ToggleLeft className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

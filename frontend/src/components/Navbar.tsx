@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, Settings, Layers } from "lucide-react";
+import { ChevronDown, LogOut, Settings, Layers, Users } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Navbar() {
@@ -94,6 +94,19 @@ export default function Navbar() {
                       Manage Services
                     </button>
                   )}
+                  {(user?.role === "admin" || user?.role === "superadmin") && (
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate("/users");
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-surface-raised hover:text-white transition-colors"
+                    >
+                      <Users className="w-4 h-4 text-white/40" />
+                      Manage Users
+                    </button>
+                  )}
+
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 transition-colors"

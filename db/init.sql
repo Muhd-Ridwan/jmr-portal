@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS service_types (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
     monthly_fee NUMERIC(10, 2) NOT NULL,
     registration_fee NUMERIC(10, 2) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS parents (
     parent_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
     address TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -98,11 +100,6 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 
 INSERT INTO roles (name) VALUES ('superadmin'),('admin'),('user')
-ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO service_types (name, monthly_fee, registration_fee) VALUES
-('quran_only', 30.00, 20.00),
-('tuition_and_quran', 200.00, 50.00)
 ON CONFLICT (name) DO NOTHING;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO jmr;

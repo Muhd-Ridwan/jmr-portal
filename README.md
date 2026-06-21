@@ -1,5 +1,7 @@
 # jmr-portal
 
+Run backend uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
 Making a system to manage kids that take tuition service and reading quran service.
 
 Frontend:- React Javascript

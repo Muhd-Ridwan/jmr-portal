@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS roles (
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE,
     address TEXT,
     phone_num VARCHAR(20),
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(255),
     role_id INTEGER NOT NULL REFERENCES roles(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS service_types (
     name VARCHAR(100) UNIQUE NOT NULL,
     monthly_fee NUMERIC(10, 2) NOT NULL,
     registration_fee NUMERIC(10, 2) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -44,14 +45,22 @@ CREATE TABLE IF NOT EXISTS children (
     parent_id INTEGER NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     dob DATE,
-    service_type_id INTEGER NOT NULL REFERENCES service_types(id),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS child_services (
+    id SERIAL PRIMARY KEY,
+    child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    service_type_id INTEGER NOT NULL REFERENCES service_types(id),
+    UNIQUE (child_id, service_type_id)
 );
 
 CREATE TABLE IF NOT EXISTS payment_sessions (
     id SERIAL PRIMARY KEY,
     parent_id INTEGER NOT NULL REFERENCES parents(id),
     total_amount NUMERIC(10, 2) NOT NULL,
+    payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('cash', 'bank_transfer', 'online')),
     notes TEXT,
     paid_at TIMESTAMPTZ NOT NULL,
     created_by INTEGER NOT NULL REFERENCES users(id),
@@ -69,6 +78,25 @@ CREATE TABLE IF NOT EXISTS fee_payments (
     UNIQUE (child_id, month, year)
 );
 
+CREATE TABLE IF NOT EXISTS registration_payments (
+    id SERIAL PRIMARY KEY,
+    child_id INTEGER NOT NULL REFERENCES children(id),
+    amount NUMERIC(10, 2) NOT NULL,
+    payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('cash', 'bank_transfer', 'online')),
+    paid_at TIMESTAMPTZ NOT NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (child_id)
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 INSERT INTO roles (name) VALUES ('superadmin'),('admin'),('user')
 ON CONFLICT (name) DO NOTHING;
 
@@ -76,14 +104,6 @@ INSERT INTO service_types (name, monthly_fee, registration_fee) VALUES
 ('quran_only', 30.00, 20.00),
 ('tuition_and_quran', 200.00, 50.00)
 ON CONFLICT (name) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token VARCHAR(255) UNIQUE NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-  );
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO jmr;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO jmr;

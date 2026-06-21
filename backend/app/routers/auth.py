@@ -1,3 +1,4 @@
+import logging
 import bcrypt
 import jwt
 import secrets
@@ -8,6 +9,8 @@ from app.database import get_db
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 from app.emails import send_password_reset_email
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 class SetupRequest(BaseModel):
     name: str
@@ -57,7 +60,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), conn=Depends(get_db)
         if not bcrypt.checkpw(form_data.password.encode(), user["password"].encode()):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-        payload = {"sub": str(user["id"]), "email": user["email"], "role": user["role"]}
+        payload = {"sub": str(user["id"]), "email": user["email"], "name": user["name"], "role": user["role"]}
         access_token = create_access_token(payload)
         refresh_token = create_refresh_token(payload)
 
@@ -69,7 +72,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), conn=Depends(get_db)
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Login failed for %s", form_data.username)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed. Please try again.")
 
 
 @router.post("/refresh")
@@ -90,7 +94,7 @@ def refresh(token: str, conn=Depends(get_db)):
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-        new_payload = {"sub": str(user["id"]), "email": user["email"], "role": user["role"]}
+        new_payload = {"sub": str(user["id"]), "email": user["email"], "name": user["name"], "role": user["role"]}
         return {
             "access_token": create_access_token(new_payload),
             "token_type": "bearer"
@@ -98,12 +102,13 @@ def refresh(token: str, conn=Depends(get_db)):
     except HTTPException:
         raise
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired, please login again")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please log in again.")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token.")
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
-    
+        logger.exception("Token refresh failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Session refresh failed. Please log in again.")
+
 @router.post("/setup")
 def setup_admin(data: SetupRequest, conn=Depends(get_db)):
     try:
@@ -127,7 +132,8 @@ def setup_admin(data: SetupRequest, conn=Depends(get_db)):
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to create superadmin account")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create admin account. Please try again.")
 
 
 @router.post("/forgot-password")
@@ -159,7 +165,8 @@ def forgot_password(data: ForgotPasswordRequest, conn=Depends(get_db)):
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to process forgot password for %s", data.email)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send reset email. Please try again.")
 
 
 @router.post("/reset-password")
@@ -190,4 +197,5 @@ def reset_password(data: ResetPasswordRequest, conn=Depends(get_db)):
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to reset password")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to reset password. Please try again.")

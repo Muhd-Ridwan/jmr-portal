@@ -1,10 +1,15 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
+from psycopg2 import errors as pg_errors
 from app.database import get_db
 from app.routers.dependencies import require_admin, require_superadmin
+from app.routers.children import _attach_services
 from app.emails import send_onboarding_email
 import secrets
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/parents", tags=["parents"])
 
@@ -25,37 +30,50 @@ class ParentUpdate(BaseModel):
     parent_name: str | None = None
     email: str | None = None
     address: str | None = None
+    phone_numbers: list[str] | None = None
+
+    @field_validator("phone_numbers")
+    @classmethod
+    def must_have_at_least_one(cls, v):
+        if v is not None and len(v) < 1:
+            raise ValueError("At least one phone number is required")
+        return v
 
 @router.get("/")
 def get_parents(conn=Depends(get_db), current_user=Depends(require_admin)):
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM parents ORDER BY parent_name")
-        parents = cursor.fetchall()
-        return parents
+        return cursor.fetchall()
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database Error")
-    
+        logger.exception("Failed to retrieve parents")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve parents. Please try again.")
+
 @router.get("/{parent_id}")
-def get_parent(parent_id: int, conn=Depends(get_db), current_user=Depends(require_admin)):
+def get_parent(parent_id: int, include_inactive: bool = False, conn=Depends(get_db), current_user=Depends(require_admin)):
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM parents WHERE id = %s", (parent_id,))
         parent = cursor.fetchone()
         if not parent:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
-        
+
         cursor.execute("SELECT * FROM phone_numbers WHERE parent_id = %s", (parent_id,))
         phones = cursor.fetchall()
 
-        cursor.execute("SELECT * FROM children WHERE parent_id = %s AND is_active = TRUE", (parent_id,))
-        children = cursor.fetchall()
+        children_query = "SELECT * FROM children WHERE parent_id = %s"
+        if not include_inactive:
+            children_query += " AND is_active = TRUE"
+        children_query += " ORDER BY name"
+        cursor.execute(children_query, (parent_id,))
+        children = _attach_services(cursor, cursor.fetchall())
 
         return {**parent, "phone_numbers": phones, "children": children}
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to retrieve parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve parent details. Please try again.")
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_parent(data: ParentCreate, conn=Depends(get_db), current_user=Depends(require_admin)):
@@ -83,12 +101,16 @@ def create_parent(data: ParentCreate, conn=Depends(get_db), current_user=Depends
                 (parent_id, phone)
             )
         conn.commit()
-        return {"id": parent_id, "message": "Parent created successfully"}
+        return {"id": parent_id, "message": "Parent registered successfully"}
     except HTTPException:
         raise
+    except pg_errors.UniqueViolation:
+        conn.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A parent with this email is already registered.")
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database Error")
+        logger.exception("Failed to create parent")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to register parent. Please try again.")
 
 @router.put("/{parent_id}")
 def update_parent(parent_id: int, data: ParentUpdate, conn=Depends(get_db), current_user=Depends(require_admin)):
@@ -97,7 +119,7 @@ def update_parent(parent_id: int, data: ParentUpdate, conn=Depends(get_db), curr
         cursor.execute("SELECT id FROM parents WHERE id = %s", (parent_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
-        
+
         cursor.execute(
             """
             UPDATE parents SET
@@ -113,13 +135,24 @@ def update_parent(parent_id: int, data: ParentUpdate, conn=Depends(get_db), curr
                 "UPDATE users SET email = %s WHERE id = (SELECT user_id FROM parents WHERE id = %s)",
                 (data.email, parent_id)
             )
+        if data.phone_numbers is not None:
+            cursor.execute("DELETE FROM phone_numbers WHERE parent_id = %s", (parent_id,))
+            for phone in data.phone_numbers:
+                cursor.execute(
+                    "INSERT INTO phone_numbers (parent_id, phone_num) VALUES (%s, %s)",
+                    (parent_id, phone)
+                )
         conn.commit()
         return {"message": "Parent updated successfully"}
     except HTTPException:
         raise
+    except pg_errors.UniqueViolation:
+        conn.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A parent with this email is already registered.")
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to update parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update parent. Please try again.")
 
 @router.delete("/{parent_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_parent(parent_id: int, conn=Depends(get_db), current_user=Depends(require_admin)):
@@ -128,14 +161,15 @@ def delete_parent(parent_id: int, conn=Depends(get_db), current_user=Depends(req
         cursor.execute("SELECT id FROM parents WHERE id = %s", (parent_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
-        
+
         cursor.execute("DELETE FROM parents WHERE id = %s", (parent_id,))
         conn.commit()
     except HTTPException:
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database Error")
+        logger.exception("Failed to delete parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete parent. Please try again.")
 
 @router.post("/{parent_id}/send-onboarding")
 def send_onboarding(parent_id: int, conn=Depends(get_db), current_user=Depends(require_superadmin)):
@@ -148,7 +182,7 @@ def send_onboarding(parent_id: int, conn=Depends(get_db), current_user=Depends(r
         parent = cursor.fetchone()
         if not parent:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
-        
+
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
@@ -168,4 +202,5 @@ def send_onboarding(parent_id: int, conn=Depends(get_db), current_user=Depends(r
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database Error")
+        logger.exception("Failed to send onboarding email for parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send onboarding email. Please try again.")

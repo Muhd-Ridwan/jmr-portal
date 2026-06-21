@@ -1,9 +1,12 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from app.database import get_db
 from app.routers.dependencies import require_admin
 from typing import Optional
 import datetime
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -52,7 +55,7 @@ def create_payment_session(data: PaymentSessionCreate, conn=Depends(get_db), cur
                 (item.child_id, item.month, item.year)
             )
             if cursor.fetchone():
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Payment already exists for child {item.child_id} on {item.month}/{item.year}")
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Payment already recorded for child {item.child_id} on {item.month}/{item.year}")
 
         cursor.execute(
             """INSERT INTO payment_sessions (parent_id, total_amount, payment_method, notes, paid_at, created_by)
@@ -74,7 +77,8 @@ def create_payment_session(data: PaymentSessionCreate, conn=Depends(get_db), cur
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to create payment session for parent %s", data.parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to record payment. Please try again.")
 
 
 @router.post("/registration/{child_id}", status_code=status.HTTP_201_CREATED)
@@ -88,7 +92,7 @@ def create_registration_payment(child_id: int, data: RegistrationPaymentCreate, 
 
         cursor.execute("SELECT id FROM registration_payments WHERE child_id = %s", (child_id,))
         if cursor.fetchone():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Registration fee already paid for this child")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Registration fee has already been paid for this child")
 
         cursor.execute(
             """INSERT INTO registration_payments (child_id, amount, payment_method, paid_at, created_by)
@@ -102,7 +106,8 @@ def create_registration_payment(child_id: int, data: RegistrationPaymentCreate, 
         raise
     except Exception:
         conn.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to create registration payment for child %s", child_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to record registration payment. Please try again.")
 
 
 @router.get("/pending/{child_id}")
@@ -111,10 +116,13 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
         cursor = conn.cursor()
 
         cursor.execute(
-            """SELECT c.id, c.name, c.created_at, st.monthly_fee
+            """SELECT c.id, c.name, c.created_at,
+                      COALESCE(SUM(st.monthly_fee), 0) as monthly_fee
                FROM children c
-               JOIN service_types st ON c.service_type_id = st.id
-               WHERE c.id = %s""",
+               LEFT JOIN child_services cs ON c.id = cs.child_id
+               LEFT JOIN service_types st ON cs.service_type_id = st.id
+               WHERE c.id = %s
+               GROUP BY c.id, c.name, c.created_at""",
             (child_id,)
         )
         child = cursor.fetchone()
@@ -137,19 +145,29 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
             else:
                 current = current.replace(month=current.month + 1)
 
-        cursor.execute("SELECT id FROM registration_payments WHERE child_id = %s", (child_id,))
-        registration_paid = cursor.fetchone() is not None
+        cursor.execute(
+            """SELECT rp.id, rp.paid_at, rp.amount, rp.payment_method, u.name as recorded_by
+               FROM registration_payments rp
+               JOIN users u ON rp.created_by = u.id
+               WHERE rp.child_id = %s""",
+            (child_id,)
+        )
+        reg = cursor.fetchone()
+        registration_paid = reg is not None
+        registration_payment = dict(reg) if reg else None
 
         return {
             "child_id": child_id,
             "child_name": child["name"],
             "registration_paid": registration_paid,
+            "registration_payment": registration_payment,
             "pending_months": pending
         }
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to retrieve pending months for child %s", child_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve pending payments. Please try again.")
 
 
 @router.get("/history/{parent_id}")
@@ -182,11 +200,24 @@ def get_payment_history(parent_id: int, conn=Depends(get_db), current_user=Depen
             )
             result.append({**session, "fee_payments": cursor.fetchall()})
 
-        return result
+        cursor.execute(
+            """SELECT rp.id, rp.child_id, c.name as child_name, rp.amount,
+                      rp.payment_method, rp.paid_at, u.name as recorded_by
+               FROM registration_payments rp
+               JOIN children c ON rp.child_id = c.id
+               JOIN users u ON rp.created_by = u.id
+               WHERE c.parent_id = %s
+               ORDER BY rp.paid_at DESC""",
+            (parent_id,)
+        )
+        registration_payments = [dict(rp) for rp in cursor.fetchall()]
+
+        return {"sessions": result, "registration_payments": registration_payments}
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to retrieve payment history for parent %s", parent_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve payment history. Please try again.")
 
 
 @router.get("/overdue")
@@ -197,11 +228,14 @@ def get_overdue_payments(conn=Depends(get_db), current_user=Depends(require_admi
 
         cursor.execute(
             """SELECT c.id as child_id, c.name as child_name, c.created_at,
-                      p.id as parent_id, p.parent_name, st.monthly_fee
+                      p.id as parent_id, p.parent_name,
+                      COALESCE(SUM(st.monthly_fee), 0) as monthly_fee
                FROM children c
                JOIN parents p ON c.parent_id = p.id
-               JOIN service_types st ON c.service_type_id = st.id
-               WHERE c.is_active = TRUE"""
+               LEFT JOIN child_services cs ON c.id = cs.child_id
+               LEFT JOIN service_types st ON cs.service_type_id = st.id
+               WHERE c.is_active = TRUE
+               GROUP BY c.id, c.name, c.created_at, p.id, p.parent_name"""
         )
         children = cursor.fetchall()
 
@@ -237,5 +271,8 @@ def get_overdue_payments(conn=Depends(get_db), current_user=Depends(require_admi
                 })
 
         return overdue
+    except HTTPException:
+        raise
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+        logger.exception("Failed to retrieve overdue payments")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve overdue payments. Please try again.")

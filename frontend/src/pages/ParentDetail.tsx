@@ -18,6 +18,7 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
@@ -523,17 +524,18 @@ function RecordPaymentModal({
                       </span>
                       <button
                         onClick={() => removeMonth(child.id, idx)}
-                        className="text-white/30 hover:text-red-400 transition-colors text-xs"
+                        className="text-white/30 hover:text-red-400 transition-colors"
                       >
-                        ✕
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
                   <button
                     onClick={() => addMonth(child.id)}
-                    className="text-xs text-[#86efac] hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-[#86efac] hover:text-white transition-colors"
                   >
-                    + Add month
+                    <Plus className="w-3 h-3" />
+                    Add month
                   </button>
                 </div>
               )}

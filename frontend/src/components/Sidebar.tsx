@@ -1,63 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { Home, Users, CreditCard, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 const navItems = [
-  {
-    to: "/dashboard",
-    label: "Dashboard",
-    icon: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6"
-        />
-      </svg>
-    ),
-  },
-  {
-    to: "/parents",
-    label: "Parents",
-    icon: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"
-        />
-      </svg>
-    ),
-  },
+  { to: "/dashboard", label: "Dashboard", icon: <Home className="w-5 h-5" /> },
+  { to: "/parents", label: "Parents", icon: <Users className="w-5 h-5" /> },
   {
     to: "/payments",
     label: "Payments",
-    icon: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M17 9V7a4 4 0 00-8 0v2M5 9h14l1 12H4L5 9z"
-        />
-      </svg>
-    ),
+    icon: <CreditCard className="w-5 h-5" />,
   },
 ];
 
@@ -114,22 +65,9 @@ export default function Sidebar() {
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50
-  hover:text-red-600 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-6 0v-1m6-8V9a3 3 0 00-6 0v1"
-            />
-          </svg>
+          <LogOut className="w-5 h-5" />
           Logout
         </button>
       </div>

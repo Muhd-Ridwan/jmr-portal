@@ -69,6 +69,10 @@ jobs:
           script: |
             set -e
 
+            echo "--- Pulling latest code ---"
+            cd /root/jmr-portal
+            git pull origin main
+
             export DATABASE_URL="${{ secrets.DATABASE_URL }}"
 
             run_sql() {

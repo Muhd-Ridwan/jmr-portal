@@ -51,32 +51,32 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Run Database Migrations
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 5m
-          script: |
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "$VPS_SSH_KEY" > /tmp/vps_key
+          chmod 600 /tmp/vps_key
+
+          ssh -o StrictHostKeyChecking=no -i /tmp/vps_key "$VPS_USER@$VPS_HOST" bash << EOF
             set -e
 
             echo "--- Pulling latest code ---"
             cd /root/jmr-portal
             git pull origin main
 
-            export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            export DATABASE_URL="$DATABASE_URL"
 
             run_sql() {
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$1"
+              psql "\$DATABASE_URL" -v ON_ERROR_STOP=1 -f "\$1"
             }
 
             echo "--- Running init.sql ---"
@@ -86,23 +86,23 @@ jobs:
             echo "--- Running numbered migrations in order ---"
             MIGRATION_DIR="/root/jmr-portal/db/migration"
 
-            echo "--- Files in migration dir ---"
-            find "$MIGRATION_DIR" -maxdepth 1 -type f 2>&1 || echo "find failed"
+            migrations=\$(find "\$MIGRATION_DIR" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
+            echo "Matched migrations: \$migrations"
 
-            migrations=$(find "$MIGRATION_DIR" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
-            echo "Matched migrations: $migrations"
-
-            if [ -n "$migrations" ]; then
-              for f in $migrations; do
-                echo "Applying $f..."
-                run_sql "$f"
-                echo "$f applied."
+            if [ -n "\$migrations" ]; then
+              for f in \$migrations; do
+                echo "Applying \$f..."
+                run_sql "\$f"
+                echo "\$f applied."
               done
             else
               echo "No numbered migration files found. Skipping."
             fi
 
             echo "All migrations completed successfully."
+          EOF
+
+          rm -f /tmp/vps_key
 
   deploy:
     name: Deploy to VPS
@@ -119,13 +119,15 @@ jobs:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 5m
-          script: |
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          echo "$VPS_SSH_KEY" > /tmp/vps_key
+          chmod 600 /tmp/vps_key
+
+          ssh -o StrictHostKeyChecking=no -i /tmp/vps_key "$VPS_USER@$VPS_HOST" bash << 'EOF'
             set -e
 
             echo "--- Pulling latest code ---"
@@ -150,3 +152,6 @@ jobs:
             fi
 
             echo "Deploy Completed Successfully. YEAYY."
+          EOF
+
+          rm -f /tmp/vps_key

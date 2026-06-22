@@ -112,7 +112,11 @@
       "myReportsDesc": "Lihat sejarah pembayaran penuh, jumlah yang dikumpul, dan yuran tertunggak mengikut kanak-kanak atau tempoh.",
       "viewReport": "Lihat Laporan",
       "services": "Perkhidmatan",
-      "servicesDesc": "Urus jenis perkhidmatan, yuran bulanan, dan yuran pendaftaran."
+      "servicesDesc": "Urus jenis perkhidmatan, yuran bulanan, dan yuran pendaftaran.",
+      "donationFund": "Dana Derma",
+      "donationFundDesc": "Rekod derma yang diterima dan pantau cara dana digunakan.",
+      "donationFundDescParent": "Lihat cara wang derma dikumpul dan ke mana ia digunakan.",
+      "viewFund": "Lihat Dana"
     }
   },
   "login": {
@@ -483,5 +487,49 @@
     "columnReceipt": "Resit",
     "inactive": "Tidak Aktif",
     "active": "Aktif"
+  },
+  "donations": {
+    "title": "Dana Derma",
+    "description": "Rekod derma yang diterima dan perbelanjaan yang dibuat.",
+    "totalReceived": "Jumlah Diterima",
+    "totalSpent": "Jumlah Perbelanjaan",
+    "balance": "Baki",
+    "addTransaction": "Tambah Transaksi",
+    "filterAll": "Semua",
+    "filterCredit": "Diterima",
+    "filterDebit": "Perbelanjaan",
+    "typeCredit": "Terima Derma",
+    "typeDebit": "Perbelanjaan",
+    "noTransactions": "Tiada transaksi direkodkan lagi.",
+    "columnDate": "Tarikh",
+    "columnType": "Jenis",
+    "columnAmount": "Jumlah",
+    "columnDescription": "Keterangan",
+    "columnReceipt": "Resit",
+    "recordedBy": "Direkodkan oleh",
+    "preview": "Pratonton",
+    "download": "Muat Turun",
+    "deleteConfirm": "Padam transaksi ini?",
+    "modal": {
+      "addTitle": "Tambah Transaksi",
+      "editTitle": "Edit Transaksi",
+      "typeLabel": "Jenis",
+      "credit": "Terima Derma",
+      "debit": "Perbelanjaan",
+      "amountLabel": "Jumlah (RM)",
+      "descriptionLabel": "Keterangan",
+      "descriptionPlaceholder": "cth. Kerusi, papan putih, alat tulis...",
+      "dateLabel": "Tarikh",
+      "receiptLabel": "Resit",
+      "attachReceipt": "Lampirkan resit (PDF, PNG, JPG)",
+      "cancel": "Batal",
+      "save": "Simpan",
+      "amountRequired": "Jumlah diperlukan",
+      "dateRequired": "Tarikh diperlukan",
+      "successCreate": "Transaksi direkodkan",
+      "successUpdate": "Transaksi dikemaskini",
+      "successDelete": "Transaksi dipadam",
+      "uploadFailed": "Gagal memuat naik resit ke storan"
+    }
   }
 }

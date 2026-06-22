@@ -1,7 +1,7 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, parents, children, users, payments, reports
+from app.routers import auth, parents, children, users, payments, reports, donations
 from app.config import ALLOWED_ORIGINS
 
 logging.basicConfig(
@@ -25,6 +25,7 @@ app.include_router(children.router)
 app.include_router(users.router)
 app.include_router(payments.router)
 app.include_router(reports.router)
+app.include_router(donations.router)
 
 @app.get("/health")
 def health():

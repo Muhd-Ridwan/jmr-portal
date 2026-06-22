@@ -17,6 +17,7 @@ import MyChildren from "./pages/MyChildren";
 import MyPayments from "./pages/MyPayments";
 import MyReports from "./pages/MyReports";
 import Reports from "./pages/Reports";
+import Donations from "./pages/Donations";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/my-payments" element={<MyPayments />} />
         <Route path="/my-reports" element={<MyReports />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/donations" element={<Donations />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

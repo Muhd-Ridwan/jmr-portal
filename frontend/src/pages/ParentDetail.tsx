@@ -353,7 +353,6 @@ function RecordPaymentModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
-  const months = t("common.months", { returnObjects: true }) as string[];
   const monthsShort = t("common.monthsShort", {
     returnObjects: true,
   }) as string[];

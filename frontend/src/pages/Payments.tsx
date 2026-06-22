@@ -48,6 +48,7 @@ export default function Payments() {
       <PageHeader
         title={t("payments.title")}
         description={t("payments.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
       />
 
       {/* Overdue monthly fees */}

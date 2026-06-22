@@ -339,18 +339,53 @@ export default function Users() {
                             year: "numeric",
                           })}
                         </p>
-                        {canDelete && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleDelete(u)}
-                            disabled={deletingId === u.id}
-                            className="hover:!text-red-400"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            {t("users.remove")}
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {isSuperadmin &&
+                            u.is_parent &&
+                            u.needs_onboarding &&
+                            u.email && (
+                              <button
+                                onClick={() => handleSendOnboarding(u)}
+                                disabled={sendingId === u.id}
+                                title={t("users.sendOnboarding")}
+                                className="p-1.5 rounded-lg text-white/30 hover:text-[#86efac] hover:bg-primary/10 transition-colors disabled:opacity-30"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
+                          {isSuperadmin && u.is_parent && (
+                            <button
+                              onClick={() => handleToggleParent(u)}
+                              disabled={togglingParentId === u.id}
+                              title={
+                                u.parent_is_active
+                                  ? t("users.deactivateParent")
+                                  : t("users.activateParent")
+                              }
+                              className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${
+                                u.parent_is_active
+                                  ? "text-white/30 hover:text-red-400 hover:bg-red-900/20"
+                                  : "text-white/30 hover:text-[#86efac] hover:bg-primary/10"
+                              }`}
+                            >
+                              {u.parent_is_active ? (
+                                <UserX className="w-4 h-4" />
+                              ) : (
+                                <UserCheck className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(u)}
+                              disabled={deletingId === u.id}
+                              title={`${t("users.remove")} ${u.name}`}
+                              className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-30"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 

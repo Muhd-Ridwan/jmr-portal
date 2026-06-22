@@ -190,7 +190,7 @@
     "paymentHistory": "Payment History",
     "entries_one": "{{count}} entry",
     "entries_other": "{{count}} entries",
-    "recordPayment": "Record Payment",
+    "recordPaymentBtn": "Record Payment",
     "noPaymentsYet": "No payments recorded yet.",
     "registrationLabel": "Registration",
     "note": "Note:",

@@ -25,8 +25,8 @@ export default function PageHeader({
           {backTo.label}
         </Link>
       )}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold text-white">{title}</h1>
           {description && (
             <p className="text-sm text-white/50 mt-0.5">{description}</p>

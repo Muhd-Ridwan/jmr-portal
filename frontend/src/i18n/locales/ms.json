@@ -190,7 +190,7 @@
     "paymentHistory": "Sejarah Pembayaran",
     "entries_one": "{{count}} entri",
     "entries_other": "{{count}} entri",
-    "recordPayment": "Rekod Pembayaran",
+    "recordPaymentBtn": "Rekod Pembayaran",
     "noPaymentsYet": "Belum ada pembayaran yang direkodkan.",
     "registrationLabel": "Pendaftaran",
     "note": "Nota:",

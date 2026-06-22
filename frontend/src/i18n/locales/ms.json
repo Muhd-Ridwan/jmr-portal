@@ -110,7 +110,9 @@
       "viewPayments": "Lihat Pembayaran",
       "myReports": "Laporan Saya",
       "myReportsDesc": "Lihat sejarah pembayaran penuh, jumlah yang dikumpul, dan yuran tertunggak mengikut kanak-kanak atau tempoh.",
-      "viewReport": "Lihat Laporan"
+      "viewReport": "Lihat Laporan",
+      "services": "Perkhidmatan",
+      "servicesDesc": "Urus jenis perkhidmatan, yuran bulanan, dan yuran pendaftaran."
     }
   },
   "login": {

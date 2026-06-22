@@ -110,7 +110,9 @@
       "viewPayments": "View Payments",
       "myReports": "My Reports",
       "myReportsDesc": "See your full payment history, collected totals, and outstanding fees by child or period.",
-      "viewReport": "View Report"
+      "viewReport": "View Report",
+      "services": "Services",
+      "servicesDesc": "Manage service types, monthly fees, and registration fees."
     }
   },
   "login": {

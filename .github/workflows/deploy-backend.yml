@@ -84,10 +84,12 @@ jobs:
             echo "init.sql completed."
 
             echo "--- Running numbered migrations in order ---"
-            MIGRATION_DIR="/root/jmr-portal/db/migration/"
+            MIGRATION_DIR="/root/jmr-portal/db/migration"
 
-            if ls "$MIGRATION_DIR"/[0-9]*.sql 1>/dev/null 2>&1; then
-              for f in $(ls "$MIGRATION_DIR"/[0-9]*.sql | sort); do
+            migrations=$(find "$MIGRATION_DIR" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
+
+            if [ -n "$migrations" ]; then
+              for f in $migrations; do
                 echo "Applying $f..."
                 run_sql "$f"
                 echo "$f applied."

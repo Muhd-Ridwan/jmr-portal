@@ -533,7 +533,7 @@ export default function PrayerTimes() {
     [fetchPrayers],
   );
 
-  // Initial zone resolution
+  // Initial zone resolution — only restore from localStorage, never auto-prompt
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -544,23 +544,32 @@ export default function PrayerTimes() {
         return;
       }
     }
-    if (!navigator.geolocation) {
-      setLoading(false);
+    setLoading(false);
+  }, [fetchPrayers]);
+
+  const handleZoneButtonClick = useCallback(() => {
+    if (zone) {
       setShowPicker(true);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const z = nearestZone(pos.coords.latitude, pos.coords.longitude);
-        applyZone(z);
-      },
-      () => {
-        setLoading(false);
-        setShowPicker(true);
-      },
-      { timeout: 5000 },
-    );
-  }, [fetchPrayers, applyZone]);
+    // User explicitly asked — now try geolocation, fall back to picker
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const z = nearestZone(pos.coords.latitude, pos.coords.longitude);
+          applyZone(z);
+        },
+        () => {
+          setLoading(false);
+          setShowPicker(true);
+        },
+        { timeout: 5000 },
+      );
+    } else {
+      setShowPicker(true);
+    }
+  }, [zone, applyZone]);
 
   // Re-fetch at midnight when day changes
   useEffect(() => {
@@ -589,7 +598,7 @@ export default function PrayerTimes() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Zone selector */}
         <button
-          onClick={() => setShowPicker(true)}
+          onClick={handleZoneButtonClick}
           className="flex items-center gap-1 text-white/35 hover:text-white/60 transition-colors shrink-0"
         >
           <MapPin className="w-3 h-3" />

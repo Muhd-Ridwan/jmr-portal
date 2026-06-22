@@ -86,7 +86,11 @@ jobs:
             echo "--- Running numbered migrations in order ---"
             MIGRATION_DIR="/root/jmr-portal/db/migration"
 
+            echo "--- Files in migration dir ---"
+            find "$MIGRATION_DIR" -maxdepth 1 -type f 2>&1 || echo "find failed"
+
             migrations=$(find "$MIGRATION_DIR" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
+            echo "Matched migrations: $migrations"
 
             if [ -n "$migrations" ]; then
               for f in $migrations; do

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Eye, Phone, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import { getParents, createParent, deleteParent } from "../api/parents";
 import type { Parent } from "../types";
@@ -29,6 +30,7 @@ const emptyForm: ParentForm = {
 export default function Parents() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -60,10 +62,9 @@ export default function Parents() {
 
   function validate() {
     const e: Record<string, string> = {};
-    if (!form.parent_name.trim()) e.parent_name = "Name is required";
+    if (!form.parent_name.trim()) e.parent_name = t("parents.nameRequired");
     const validPhones = form.phone_numbers.filter((p) => p.trim());
-    if (validPhones.length === 0)
-      e.phone_numbers = "At least one phone number is required";
+    if (validPhones.length === 0) e.phone_numbers = t("parents.phoneRequired");
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -78,7 +79,7 @@ export default function Parents() {
         address: form.address.trim() || undefined,
         phone_numbers: form.phone_numbers.filter((p) => p.trim()),
       });
-      toast.success("Parent registered successfully");
+      toast.success(t("parents.successRegistered"));
       closeModal();
       load();
     } catch (err) {
@@ -91,7 +92,7 @@ export default function Parents() {
   async function handleDelete(id: number) {
     try {
       await deleteParent(id);
-      toast.success("Parent deleted");
+      toast.success(t("parents.successDeleted"));
       setConfirmDelete(null);
       setParents((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
@@ -126,7 +127,7 @@ export default function Parents() {
 
   const columns = [
     {
-      header: "Name",
+      header: t("parents.nameColumn"),
       key: "parent_name",
       render: (row: Parent) => (
         <div className="flex items-center gap-2">
@@ -137,28 +138,28 @@ export default function Parents() {
           </span>
           {!row.is_active && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-surface-raised text-white/30">
-              Inactive
+              {t("common.inactive")}
             </span>
           )}
         </div>
       ),
     },
     {
-      header: "Email",
+      header: t("parents.emailColumn"),
       key: "email",
       render: (row: Parent) => (
         <span className="text-white/50">{row.email ?? "—"}</span>
       ),
     },
     {
-      header: "Address",
+      header: t("parents.addressColumn"),
       key: "address",
       render: (row: Parent) => (
         <span className="text-white/50">{row.address ?? "—"}</span>
       ),
     },
     {
-      header: "Registered",
+      header: t("parents.registeredColumn"),
       key: "created_at",
       render: (row: Parent) =>
         new Date(row.created_at).toLocaleDateString("en-MY"),
@@ -175,7 +176,7 @@ export default function Parents() {
             onClick={() => navigate(`/parents/${row.id}`)}
           >
             <Eye className="w-3.5 h-3.5" />
-            View
+            {t("parents.viewButton")}
           </Button>
           {confirmDelete === row.id ? (
             <Button
@@ -183,7 +184,7 @@ export default function Parents() {
               variant="danger"
               onClick={() => handleDelete(row.id)}
             >
-              Confirm
+              {t("parents.confirmDelete")}
             </Button>
           ) : (
             <button
@@ -202,9 +203,9 @@ export default function Parents() {
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-6">
       <PageHeader
-        title="Parents"
-        description="Manage registered parents and their children."
-        backTo={{ label: "Dashboard", to: "/dashboard" }}
+        title={t("parents.title")}
+        description={t("parents.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -217,11 +218,13 @@ export default function Parents() {
               ) : (
                 <Eye className="w-3.5 h-3.5" />
               )}
-              {includeInactive ? "Hide inactive" : "Show inactive"}
+              {includeInactive
+                ? t("parents.hideInactive")
+                : t("parents.showInactive")}
             </Button>
             <Button onClick={() => setShowModal(true)}>
               <Plus className="w-4 h-4" />
-              Add Parent
+              {t("parents.addParent")}
             </Button>
           </div>
         }
@@ -230,29 +233,33 @@ export default function Parents() {
       <Table
         columns={columns}
         data={parents}
-        emptyMessage={loading ? "Loading..." : "No parents registered yet."}
+        emptyMessage={loading ? t("common.loading") : t("parents.noParents")}
       />
 
       {showModal && (
         <Modal
-          title="Register Parent"
+          title={t("parents.registerParent")}
           onClose={closeModal}
           footer={
             <>
               <Button variant="secondary" onClick={closeModal}>
-                Cancel
+                {t("parents.modal.cancel")}
               </Button>
               <Button loading={saving} onClick={handleCreate}>
-                Register
+                {t("parents.modal.register")}
               </Button>
             </>
           }
         >
           <div className="space-y-4">
-            <FormField label="Full Name" required error={errors.parent_name}>
+            <FormField
+              label={t("parents.modal.fullName")}
+              required
+              error={errors.parent_name}
+            >
               <Input
                 type="text"
-                placeholder="Parent's full name"
+                placeholder={t("parents.modal.fullNamePlaceholder")}
                 value={form.parent_name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, parent_name: e.target.value }))
@@ -261,10 +268,10 @@ export default function Parents() {
               />
             </FormField>
 
-            <FormField label="Email" error={errors.email}>
+            <FormField label={t("common.email")} error={errors.email}>
               <Input
                 type="email"
-                placeholder="Optional"
+                placeholder={t("common.optional")}
                 value={form.email}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, email: e.target.value }))
@@ -272,10 +279,10 @@ export default function Parents() {
               />
             </FormField>
 
-            <FormField label="Address" error={errors.address}>
+            <FormField label={t("common.address")} error={errors.address}>
               <Input
                 type="text"
-                placeholder="Optional"
+                placeholder={t("common.optional")}
                 value={form.address}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, address: e.target.value }))
@@ -285,13 +292,16 @@ export default function Parents() {
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-white/70">
-                Phone Numbers <span className="text-red-400">*</span>
+                {t("parents.modal.phoneNumbers")}{" "}
+                <span className="text-red-400">*</span>
               </label>
               {form.phone_numbers.map((phone, i) => (
                 <div key={i} className="flex gap-2">
                   <Input
                     type="tel"
-                    placeholder={`Phone ${i + 1}`}
+                    placeholder={t("parents.modal.phonePlaceholder", {
+                      num: i + 1,
+                    })}
                     value={phone}
                     onChange={(e) => updatePhone(i, e.target.value)}
                     error={i === 0 ? errors.phone_numbers : undefined}
@@ -316,7 +326,7 @@ export default function Parents() {
                 className="inline-flex items-center gap-1 text-xs text-[#86efac] hover:text-white mt-1 transition-colors"
               >
                 <Phone className="w-3.5 h-3.5" />
-                Add another number
+                {t("parents.modal.addAnotherNumber")}
               </button>
             </div>
           </div>

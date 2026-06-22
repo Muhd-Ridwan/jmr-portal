@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Filter, Download, FileText, Eye, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
@@ -11,7 +12,7 @@ import { getParents, getParent } from "../api/parents";
 import { getPaymentSummary } from "../api/reports";
 import type { Parent, Child, ReportParent } from "../types";
 
-const MONTHS = [
+const EN_MONTHS = [
   "January",
   "February",
   "March",
@@ -73,7 +74,7 @@ function generatePDF(data: ReportParent[], filters: ExportFilters): void {
   if (filters.parentName) filterParts.push(`Parent: ${filters.parentName}`);
   if (filters.childName) filterParts.push(`Child: ${filters.childName}`);
   if (filters.month && filters.year) {
-    filterParts.push(`Period: ${MONTHS[filters.month - 1]} ${filters.year}`);
+    filterParts.push(`Period: ${EN_MONTHS[filters.month - 1]} ${filters.year}`);
   } else if (filters.year) {
     filterParts.push(`Year: ${filters.year}`);
   }
@@ -92,7 +93,6 @@ function generatePDF(data: ReportParent[], filters: ExportFilters): void {
       yPos = 15;
     }
 
-    // Parent header bar
     doc.setFillColor(79, 140, 92);
     doc.rect(14, yPos - 5, pageWidth - 28, 9, "F");
     doc.setFontSize(11);
@@ -170,7 +170,7 @@ function generatePDF(data: ReportParent[], filters: ExportFilters): void {
           margin: { left: 18, right: 14 },
           head: [["Month", "Year", "Amount", "Status", "Date Paid"]],
           body: child.months.map((m) => [
-            MONTHS[m.month - 1],
+            EN_MONTHS[m.month - 1],
             String(m.year),
             fmtRM(m.amount),
             m.paid ? "PAID" : "UNPAID",
@@ -212,6 +212,9 @@ function generatePDF(data: ReportParent[], filters: ExportFilters): void {
 }
 
 export default function Reports() {
+  const { t } = useTranslation();
+  const months = t("common.months", { returnObjects: true }) as string[];
+
   const [allParents, setAllParents] = useState<Parent[]>([]);
   const [selectedParentId, setSelectedParentId] = useState("");
   const [selectedChildId, setSelectedChildId] = useState("");
@@ -264,7 +267,7 @@ export default function Reports() {
         100,
       );
     } catch {
-      toast.error("Failed to generate report.");
+      toast.error(t("reports.noDataFound"));
     } finally {
       setLoading(false);
     }
@@ -357,36 +360,38 @@ export default function Reports() {
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
       <PageHeader
-        title="Payment Reports"
-        description="Filter and export payment history for parents and children."
-        backTo={{ label: "Dashboard", to: "/dashboard" }}
+        title={t("reports.title")}
+        description={t("reports.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
       />
 
       {/* Filters */}
       <div className="bg-surface border border-surface-raised rounded-xl p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-white/50" />
-          <h2 className="text-sm font-semibold text-white/70">Filters</h2>
+          <h2 className="text-sm font-semibold text-white/70">
+            {t("reports.filters")}
+          </h2>
           <span className="text-xs text-white/30 ml-1">
-            — no default selection
+            {t("reports.noDefaultSelection")}
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Parent
+              {t("reports.parentLabel")}
             </label>
             <select
               className={SELECT_CLS}
               value={selectedParentId}
               onChange={(e) => setSelectedParentId(e.target.value)}
             >
-              <option value="">All Parents</option>
+              <option value="">{t("reports.allParents")}</option>
               {allParents.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.parent_name}
-                  {p.is_active ? "" : " (Inactive)"}
+                  {p.is_active ? "" : ` (${t("common.inactive")})`}
                 </option>
               ))}
             </select>
@@ -394,7 +399,7 @@ export default function Reports() {
 
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Child
+              {t("reports.childLabel")}
             </label>
             <select
               className={SELECT_CLS}
@@ -402,11 +407,11 @@ export default function Reports() {
               onChange={(e) => setSelectedChildId(e.target.value)}
               disabled={!selectedParentId}
             >
-              <option value="">All Children</option>
+              <option value="">{t("reports.allChildren")}</option>
               {parentChildren.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {c.is_active ? "" : " (Inactive)"}
+                  {c.is_active ? "" : ` (${t("common.inactive")})`}
                 </option>
               ))}
             </select>
@@ -414,14 +419,14 @@ export default function Reports() {
 
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Year
+              {t("reports.yearLabel")}
             </label>
             <select
               className={SELECT_CLS}
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             >
-              <option value="">All Years</option>
+              <option value="">{t("reports.allYears")}</option>
               {YEARS.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -432,7 +437,7 @@ export default function Reports() {
 
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Month
+              {t("reports.monthLabel")}
             </label>
             <select
               className={SELECT_CLS}
@@ -440,8 +445,8 @@ export default function Reports() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               disabled={!selectedYear}
             >
-              <option value="">All Months</option>
-              {MONTHS.map((name, i) => (
+              <option value="">{t("reports.allMonths")}</option>
+              {months.map((name, i) => (
                 <option key={i + 1} value={i + 1}>
                   {name}
                 </option>
@@ -453,10 +458,10 @@ export default function Reports() {
         <div className="flex items-center gap-3">
           <Button onClick={handleGenerate} loading={loading}>
             <Eye className="w-3.5 h-3.5" />
-            Show
+            {t("reports.show")}
           </Button>
           <Button variant="secondary" onClick={handleClear} disabled={loading}>
-            Clear
+            {t("reports.clear")}
           </Button>
         </div>
       </div>
@@ -468,38 +473,38 @@ export default function Reports() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <div className="bg-surface border border-surface-raised rounded-xl px-4 py-3">
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Parents
+                {t("reports.parentsLabel")}
               </p>
               <p className="text-xl font-bold text-white">{totalParents}</p>
               <p className="text-xs text-white/30 mt-0.5">
-                {totalChildren} child{totalChildren !== 1 ? "ren" : ""}
+                {t("reports.children", { count: totalChildren })}
               </p>
             </div>
             <div className="bg-surface border border-surface-raised rounded-xl px-4 py-3">
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Months Paid
+                {t("reports.monthsPaid")}
               </p>
               <p className="text-xl font-bold text-white">{totalPaid}</p>
               <p className="text-xs text-white/30 mt-0.5">
-                {totalUnpaid} unpaid
+                {t("reports.unpaidCount", { count: totalUnpaid })}
               </p>
             </div>
             <div className="bg-surface border border-green-900/50 rounded-xl px-4 py-3">
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Total Collected
+                {t("reports.totalCollected")}
               </p>
               <p className="text-xl font-bold text-green-400">
                 RM {totalCollected.toFixed(2)}
               </p>
               <p className="text-xs text-white/30 mt-0.5">
-                fees + registration
+                {t("reports.feesAndReg")}
               </p>
             </div>
             <div
               className={`bg-surface border rounded-xl px-4 py-3 ${totalOutstanding > 0 ? "border-red-900/50" : "border-surface-raised"}`}
             >
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Outstanding
+                {t("reports.outstanding")}
               </p>
               <p
                 className={`text-xl font-bold ${totalOutstanding > 0 ? "text-red-400" : "text-white"}`}
@@ -507,7 +512,7 @@ export default function Reports() {
                 RM {totalOutstanding.toFixed(2)}
               </p>
               <p className="text-xs text-white/30 mt-0.5">
-                {totalUnpaid} month{totalUnpaid !== 1 ? "s" : ""} unpaid
+                {t("reports.monthsUnpaid", { count: totalUnpaid })}
               </p>
             </div>
           </div>
@@ -516,14 +521,14 @@ export default function Reports() {
           <div className="flex justify-end mb-4">
             <Button size="sm" onClick={handleExportClick}>
               <Download className="w-3.5 h-3.5" />
-              Generate Report
+              {t("reports.generateReport")}
             </Button>
           </div>
 
           {reportData.length === 0 ? (
             <div className="bg-surface border border-surface-raised rounded-xl p-10 flex flex-col items-center gap-3 text-white/30">
               <FileText className="w-8 h-8" />
-              <p className="text-sm">No data found for the selected filters.</p>
+              <p className="text-sm">{t("reports.noDataFound")}</p>
             </div>
           ) : (
             <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden divide-y divide-white/10">
@@ -531,7 +536,6 @@ export default function Reports() {
                 const isOpen = openParentId === parent.parent_id;
                 return (
                   <div key={parent.parent_id}>
-                    {/* Accordion header */}
                     <button
                       className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors text-left"
                       onClick={() =>
@@ -543,11 +547,14 @@ export default function Reports() {
                           {parent.parent_name}
                         </h3>
                         <Badge variant={parent.is_active ? "green" : "gray"}>
-                          {parent.is_active ? "Active" : "Inactive"}
+                          {parent.is_active
+                            ? t("reports.active")
+                            : t("reports.inactive")}
                         </Badge>
                         <span className="text-xs text-white/30">
-                          {parent.children.length} child
-                          {parent.children.length !== 1 ? "ren" : ""}
+                          {t("reports.children", {
+                            count: parent.children.length,
+                          })}
                         </span>
                       </div>
                       <ChevronDown
@@ -555,12 +562,11 @@ export default function Reports() {
                       />
                     </button>
 
-                    {/* Accordion body */}
                     {isOpen && (
                       <div className="px-5 pb-5 pt-1 space-y-3 border-t border-white/10">
                         {parent.children.length === 0 ? (
                           <p className="text-sm text-white/40 py-2">
-                            No children found.
+                            {t("reports.noChildren")}
                           </p>
                         ) : (
                           parent.children.map((child) => (
@@ -575,7 +581,9 @@ export default function Reports() {
                                 <Badge
                                   variant={child.is_active ? "green" : "gray"}
                                 >
-                                  {child.is_active ? "Active" : "Inactive"}
+                                  {child.is_active
+                                    ? t("reports.active")
+                                    : t("reports.inactive")}
                                 </Badge>
                               </div>
                               {child.service_names.length > 0 && (
@@ -587,7 +595,7 @@ export default function Reports() {
                               <p className="text-xs mb-3">
                                 {child.registration.paid ? (
                                   <span className="text-green-400">
-                                    Registration: Paid{" "}
+                                    {t("reports.registrationPaid")}{" "}
                                     {fmtRM(child.registration.amount!)} on{" "}
                                     {fmtDate(child.registration.paid_at!)} (
                                     {(
@@ -597,7 +605,7 @@ export default function Reports() {
                                   </span>
                                 ) : (
                                   <span className="text-red-400">
-                                    Registration: Unpaid
+                                    {t("reports.registrationUnpaid")}
                                   </span>
                                 )}
                               </p>
@@ -608,19 +616,19 @@ export default function Reports() {
                                     <thead>
                                       <tr className="text-white/40 text-left">
                                         <th className="pb-2 pr-4 font-medium">
-                                          Month
+                                          {t("reports.columnMonth")}
                                         </th>
                                         <th className="pb-2 pr-4 font-medium">
-                                          Year
+                                          {t("reports.columnYear")}
                                         </th>
                                         <th className="pb-2 pr-4 font-medium">
-                                          Amount
+                                          {t("reports.columnAmount")}
                                         </th>
                                         <th className="pb-2 pr-4 font-medium">
-                                          Status
+                                          {t("reports.columnStatus")}
                                         </th>
                                         <th className="pb-2 font-medium">
-                                          Date Paid
+                                          {t("reports.columnDatePaid")}
                                         </th>
                                       </tr>
                                     </thead>
@@ -631,7 +639,7 @@ export default function Reports() {
                                           className="border-t border-surface-raised/50"
                                         >
                                           <td className="py-1.5 pr-4 text-white/70">
-                                            {MONTHS[m.month - 1]}
+                                            {months[m.month - 1]}
                                           </td>
                                           <td className="py-1.5 pr-4 text-white/70">
                                             {m.year}
@@ -643,7 +651,9 @@ export default function Reports() {
                                             <Badge
                                               variant={m.paid ? "green" : "red"}
                                             >
-                                              {m.paid ? "Paid" : "Unpaid"}
+                                              {m.paid
+                                                ? t("common.paid")
+                                                : t("common.unpaid")}
                                             </Badge>
                                           </td>
                                           <td className="py-1.5 text-white/50">
@@ -658,7 +668,7 @@ export default function Reports() {
                                 </div>
                               ) : (
                                 <p className="text-xs text-white/40 italic">
-                                  No payment records for this period.
+                                  {t("reports.noPaymentRecords")}
                                 </p>
                               )}
                             </div>
@@ -677,7 +687,7 @@ export default function Reports() {
       {/* Confirm export-all modal */}
       {showConfirmExport && (
         <Modal
-          title="Export All Data?"
+          title={t("reports.exportAll.title")}
           onClose={() => setShowConfirmExport(false)}
           footer={
             <>
@@ -685,18 +695,17 @@ export default function Reports() {
                 variant="secondary"
                 onClick={() => setShowConfirmExport(false)}
               >
-                Cancel
+                {t("reports.exportAll.cancel")}
               </Button>
               <Button onClick={doExport}>
                 <Download className="w-4 h-4" />
-                Yes, Generate Report
+                {t("reports.exportAll.confirm")}
               </Button>
             </>
           }
         >
           <p className="text-white/70 text-sm">
-            No filters are selected. This will export the full payment history
-            for all parents and children. Continue?
+            {t("reports.exportAll.message")}
           </p>
         </Modal>
       )}

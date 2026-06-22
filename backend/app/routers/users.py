@@ -22,13 +22,14 @@ class ProfileUpdate(BaseModel):
     email: str | None = None
     current_password: str | None = None
     new_password: str | None = None
+    language: str | None = None
 
 @router.get("/me")
 def get_me(conn=Depends(get_db), current_user=Depends(get_current_user)):
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT u.id, u.name, u.email, u.phone_num, u.address, r.name as role FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = %s",
+            "SELECT u.id, u.name, u.email, u.phone_num, u.address, u.language, r.name as role FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = %s",
             (current_user["id"],)
         )
         return cursor.fetchone()
@@ -56,13 +57,17 @@ def update_me(data: ProfileUpdate, conn=Depends(get_db), current_user=Depends(ge
 
         new_password_hash = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode() if data.new_password else None
 
+        allowed_languages = {"en", "ms"}
+        language = data.language if data.language in allowed_languages else None
+
         cursor.execute(
             """UPDATE users SET
                name = COALESCE(%s, name),
                email = COALESCE(%s, email),
-               password = COALESCE(%s, password)
+               password = COALESCE(%s, password),
+               language = COALESCE(%s, language)
                WHERE id = %s""",
-            (data.name, data.email, new_password_hash, current_user["id"])
+            (data.name, data.email, new_password_hash, language, current_user["id"])
         )
         conn.commit()
         return {"message": "Profile updated successfully"}

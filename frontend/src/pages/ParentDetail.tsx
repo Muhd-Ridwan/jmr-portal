@@ -24,6 +24,7 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import { getParent, updateParent } from "../api/parents";
 import {
@@ -53,21 +54,6 @@ import Button from "../components/Button";
 import FormField from "../components/FormField";
 import Input from "../components/Input";
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 // ── Edit Parent Modal ─────────────────────────────────────────────────────────
 
 function EditParentModal({
@@ -79,6 +65,7 @@ function EditParentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     parent_name: parent.parent_name,
     email: parent.email ?? "",
@@ -103,12 +90,12 @@ function EditParentModal({
 
   async function handleSave() {
     if (!form.parent_name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("parentDetail.editParent.nameRequired"));
       return;
     }
     const finalPhones = newPhone.trim() ? [...phones, newPhone.trim()] : phones;
     if (finalPhones.length === 0) {
-      toast.error("At least one phone number is required");
+      toast.error(t("parentDetail.editParent.phoneRequired"));
       return;
     }
     setSaving(true);
@@ -119,7 +106,7 @@ function EditParentModal({
         address: form.address.trim() || undefined,
         phone_numbers: finalPhones,
       });
-      toast.success("Parent updated");
+      toast.success(t("parentDetail.editParent.success"));
       onSaved();
       onClose();
     } catch (err) {
@@ -131,21 +118,21 @@ function EditParentModal({
 
   return (
     <Modal
-      title="Edit Parent"
+      title={t("parentDetail.editParent.title")}
       onClose={onClose}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("parentDetail.editParent.cancel")}
           </Button>
           <Button loading={saving} onClick={handleSave}>
-            Save Changes
+            {t("parentDetail.editParent.saveChanges")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <FormField label="Full Name" required>
+        <FormField label={t("parentDetail.editParent.fullName")} required>
           <Input
             type="text"
             value={form.parent_name}
@@ -154,25 +141,25 @@ function EditParentModal({
             }
           />
         </FormField>
-        <FormField label="Email">
+        <FormField label={t("common.email")}>
           <Input
             type="email"
-            placeholder="Optional"
+            placeholder={t("common.optional")}
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
         </FormField>
-        <FormField label="Address">
+        <FormField label={t("common.address")}>
           <Input
             type="text"
-            placeholder="Optional"
+            placeholder={t("common.optional")}
             value={form.address}
             onChange={(e) =>
               setForm((f) => ({ ...f, address: e.target.value }))
             }
           />
         </FormField>
-        <FormField label="Phone Numbers" required>
+        <FormField label={t("common.phone")} required>
           <div className="space-y-2">
             {phones.map((phone, idx) => (
               <div key={idx} className="flex items-center gap-2">
@@ -199,7 +186,7 @@ function EditParentModal({
             <div className="flex items-center gap-2">
               <Input
                 type="text"
-                placeholder="Add phone number"
+                placeholder={t("parentDetail.editParent.addPhoneNumber")}
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addPhone()}
@@ -234,6 +221,7 @@ function AddChildModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: "",
     dob: "",
@@ -253,11 +241,11 @@ function AddChildModal({
 
   async function handleSave() {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("parentDetail.addChildModal.nameRequired"));
       return;
     }
     if (form.service_type_ids.length === 0) {
-      toast.error("Select at least one service");
+      toast.error(t("parentDetail.addChildModal.serviceRequired"));
       return;
     }
     setSaving(true);
@@ -268,7 +256,7 @@ function AddChildModal({
         dob: form.dob || undefined,
         service_type_ids: form.service_type_ids,
       });
-      toast.success("Child added");
+      toast.success(t("parentDetail.addChildModal.success"));
       onSaved();
       onClose();
     } catch (err) {
@@ -280,36 +268,36 @@ function AddChildModal({
 
   return (
     <Modal
-      title="Add Child"
+      title={t("parentDetail.addChildModal.title")}
       onClose={onClose}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("parentDetail.addChildModal.cancel")}
           </Button>
           <Button loading={saving} onClick={handleSave}>
-            Add Child
+            {t("parentDetail.addChildModal.addChildBtn")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <FormField label="Name" required>
+        <FormField label={t("parentDetail.addChildModal.name")} required>
           <Input
             type="text"
-            placeholder="Child's full name"
+            placeholder={t("parentDetail.addChildModal.namePlaceholder")}
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         </FormField>
-        <FormField label="Date of Birth">
+        <FormField label={t("parentDetail.addChildModal.dob")}>
           <Input
             type="date"
             value={form.dob}
             onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
           />
         </FormField>
-        <FormField label="Services" required>
+        <FormField label={t("parentDetail.addChildModal.services")} required>
           <div className="space-y-2">
             {serviceTypes.map((st) => {
               const checked = form.service_type_ids.includes(st.id);
@@ -364,6 +352,8 @@ function RecordPaymentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
+  const months = t("common.months", { returnObjects: true }) as string[];
   const now = new Date();
   const [childMonths, setChildMonths] = useState<
     Record<number, { month: number; year: number }[]>
@@ -473,24 +463,22 @@ function RecordPaymentModal({
     });
   }
 
-  const fee_payments = Object.entries(childMonths).flatMap(
-    ([childId, months]) => {
-      const child = activeChildren.find((c) => c.id === +childId);
-      return months.map((m) => ({
-        child_id: +childId,
-        month: m.month,
-        year: m.year,
-        amount: child?.monthly_fee ?? 0,
-      }));
-    },
-  );
+  const fee_payments = Object.entries(childMonths).flatMap(([childId, ms]) => {
+    const child = activeChildren.find((c) => c.id === +childId);
+    return ms.map((m) => ({
+      child_id: +childId,
+      month: m.month,
+      year: m.year,
+      amount: child?.monthly_fee ?? 0,
+    }));
+  });
 
   const total = fee_payments.reduce((sum, p) => sum + p.amount, 0);
 
   async function handleSubmit() {
     if (saving) return;
     if (fee_payments.length === 0) {
-      toast.error("Select at least one child and month");
+      toast.error(t("parentDetail.recordPayment.selectChildAndMonth"));
       return;
     }
     setSaving(true);
@@ -509,7 +497,7 @@ function RecordPaymentModal({
           headers: { "Content-Type": contentType },
         });
         if (!uploadRes.ok)
-          throw new Error("Failed to upload receipt to storage");
+          throw new Error(t("parentDetail.recordPayment.uploadFailed"));
         receipt_key = key;
         setUploadedReceiptKey(key);
       }
@@ -522,7 +510,7 @@ function RecordPaymentModal({
         fee_payments,
         receipt_key,
       });
-      toast.success("Payment recorded");
+      toast.success(t("parentDetail.recordPayment.success"));
       onSaved();
       onClose();
     } catch (err) {
@@ -534,15 +522,15 @@ function RecordPaymentModal({
 
   return (
     <Modal
-      title="Record Payment"
+      title={t("parentDetail.recordPayment.title")}
       onClose={onClose}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("parentDetail.recordPayment.cancel")}
           </Button>
           <Button loading={saving} onClick={handleSubmit}>
-            Record — RM {total}
+            {t("parentDetail.recordPayment.record", { total })}
           </Button>
         </>
       }
@@ -550,7 +538,7 @@ function RecordPaymentModal({
       <div className="space-y-4">
         {activeChildren.map((child) => {
           const selected = !!childMonths[child.id];
-          const months = childMonths[child.id] ?? [];
+          const cms = childMonths[child.id] ?? [];
           return (
             <div
               key={child.id}
@@ -573,7 +561,7 @@ function RecordPaymentModal({
 
               {selected && (
                 <div className="px-4 py-3 space-y-2 bg-surface">
-                  {months.map((m, idx) => {
+                  {cms.map((m, idx) => {
                     const alreadyPaid = isAlreadyPaid(
                       child.id,
                       m.month,
@@ -588,7 +576,7 @@ function RecordPaymentModal({
                           }
                           className="flex-1 px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
                         >
-                          {MONTH_NAMES.map((name, i) => (
+                          {months.map((name, i) => (
                             <option key={i + 1} value={i + 1}>
                               {name}
                             </option>
@@ -605,7 +593,7 @@ function RecordPaymentModal({
                         {alreadyPaid ? (
                           <span className="flex items-center gap-0.5 text-xs text-amber-400 shrink-0">
                             <AlertTriangle className="w-3 h-3 shrink-0" />
-                            Paid
+                            {t("common.paid")}
                           </span>
                         ) : (
                           <span className="text-xs text-white/40 shrink-0">
@@ -626,7 +614,7 @@ function RecordPaymentModal({
                     className="inline-flex items-center gap-1 text-xs text-[#86efac] hover:text-white transition-colors"
                   >
                     <Plus className="w-3 h-3" />
-                    Add month
+                    {t("parentDetail.recordPayment.addMonth")}
                   </button>
                 </div>
               )}
@@ -636,38 +624,47 @@ function RecordPaymentModal({
 
         {activeChildren.length === 0 && (
           <p className="text-sm text-white/40 text-center py-4">
-            No active children to record payment for.
+            {t("parentDetail.recordPayment.noActiveChildren")}
           </p>
         )}
 
         <div className="pt-2 border-t border-surface-raised space-y-3">
-          <FormField label="Payment Method" required>
+          <FormField
+            label={t("parentDetail.recordPayment.paymentMethod")}
+            required
+          >
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as typeof method)}
               className="w-full px-3 py-2 text-sm rounded-lg border border-surface-raised bg-surface-raised text-white focus:outline-none focus:ring-2 focus:ring-primary/60"
             >
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="online">Online</option>
+              <option value="cash">
+                {t("parentDetail.recordPayment.cash")}
+              </option>
+              <option value="bank_transfer">
+                {t("parentDetail.recordPayment.bankTransfer")}
+              </option>
+              <option value="online">
+                {t("parentDetail.recordPayment.online")}
+              </option>
             </select>
           </FormField>
-          <FormField label="Notes">
+          <FormField label={t("parentDetail.recordPayment.notesLabel")}>
             <Input
               type="text"
-              placeholder="Optional"
+              placeholder={t("common.optional")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </FormField>
-          <FormField label="Receipt">
+          <FormField label={t("parentDetail.recordPayment.receiptLabel")}>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-surface-raised bg-surface-raised cursor-pointer hover:bg-[#4a7a57]/40 transition-colors flex-1 min-w-0">
                 <Upload className="w-4 h-4 text-white/30 shrink-0" />
                 <span className="text-sm text-white/50 flex-1 truncate min-w-0">
                   {receiptFile
                     ? receiptFile.name
-                    : "Attach receipt (PDF, PNG, JPG)"}
+                    : t("parentDetail.recordPayment.attachReceipt")}
                 </span>
                 <input
                   type="file"
@@ -694,7 +691,9 @@ function RecordPaymentModal({
 
         {total > 0 && (
           <div className="flex justify-between items-center py-2 border-t border-surface-raised">
-            <span className="text-sm text-white/60">Total</span>
+            <span className="text-sm text-white/60">
+              {t("parentDetail.recordPayment.total")}
+            </span>
             <span className="text-lg font-bold text-white">RM {total}</span>
           </div>
         )}
@@ -714,6 +713,8 @@ function ReceiptPreviewModal({
   isPdf: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -727,7 +728,9 @@ function ReceiptPreviewModal({
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative bg-surface border border-surface-raised rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-surface-raised shrink-0">
-          <span className="text-sm font-medium text-white/70">Receipt</span>
+          <span className="text-sm font-medium text-white/70">
+            {t("parentDetail.receiptModal.receipt")}
+          </span>
           <button
             onClick={onClose}
             className="text-white/30 hover:text-white/70 transition-colors"
@@ -765,6 +768,8 @@ export default function ParentDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const months = t("common.months", { returnObjects: true }) as string[];
   const parentId = Number(id);
 
   const [parent, setParent] = useState<ParentDetailType | null>(null);
@@ -808,7 +813,6 @@ export default function ParentDetail() {
       setServiceTypes(st);
       setHistory(h as PaymentHistory);
 
-      // Load pending payments for all children to get registration status
       const pending = await Promise.all(
         p.children.map((c) =>
           getPendingPayments(c.id).then((r) => [c.id, r] as const),
@@ -855,7 +859,7 @@ export default function ParentDetail() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
-        <p className="text-white/40 text-sm">Loading...</p>
+        <p className="text-white/40 text-sm">{t("parentDetail.loading")}</p>
       </div>
     );
   }
@@ -863,34 +867,36 @@ export default function ParentDetail() {
   if (!parent) {
     return (
       <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
-        <p className="text-red-400 text-sm">Parent not found.</p>
+        <p className="text-red-400 text-sm">
+          {t("parentDetail.parentNotFound")}
+        </p>
       </div>
     );
   }
 
   const activeChildren = parent.children.filter((c) => c.is_active);
+  const totalEntries =
+    history.sessions.length + history.registration_payments.length;
 
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8 space-y-6">
       <PageHeader
         title={parent.parent_name}
         description={`Registered ${new Date(parent.created_at).toLocaleDateString("en-MY")}`}
-        backTo={{ label: "Parents", to: "/parents" }}
+        backTo={{ label: t("parents.title"), to: "/parents" }}
         action={
           <Button variant="secondary" onClick={() => setShowEdit(true)}>
             <Pencil className="w-3.5 h-3.5" />
-            Edit
+            {t("parentDetail.edit")}
           </Button>
         }
       />
 
-      {/* Inactive banner */}
       {!parent.is_active && (
         <div className="bg-red-900/20 border border-red-500/30 rounded-xl px-5 py-3 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
           <p className="text-sm text-red-300">
-            This parent is inactive. All children have been deactivated and the
-            parent cannot log in.
+            {t("parentDetail.inactiveBanner")}
           </p>
         </div>
       )}
@@ -898,7 +904,7 @@ export default function ParentDetail() {
       {/* Parent Info */}
       <div className="bg-surface border border-surface-raised rounded-xl p-6">
         <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">
-          Contact Info
+          {t("parentDetail.contactInfo")}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-3">
@@ -932,9 +938,11 @@ export default function ParentDetail() {
       <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-surface-raised flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-white/70">Children</h2>
+            <h2 className="text-sm font-semibold text-white/70">
+              {t("parentDetail.children")}
+            </h2>
             <p className="text-xs text-white/30 mt-0.5">
-              {activeChildren.length} active
+              {t("parentDetail.activeCount", { count: activeChildren.length })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -948,18 +956,20 @@ export default function ParentDetail() {
               ) : (
                 <Eye className="w-3.5 h-3.5" />
               )}
-              {includingInactive ? "Hide inactive" : "Show inactive"}
+              {includingInactive
+                ? t("parentDetail.hideInactive")
+                : t("parentDetail.showInactive")}
             </Button>
             <Button size="sm" onClick={() => setShowAddChild(true)}>
               <Plus className="w-3.5 h-3.5" />
-              Add Child
+              {t("parentDetail.addChild")}
             </Button>
           </div>
         </div>
 
         {parent.children.length === 0 ? (
           <p className="px-6 py-8 text-sm text-white/30 text-center">
-            No children registered yet.
+            {t("parentDetail.noChildrenYet")}
           </p>
         ) : (
           <div className="divide-y divide-surface-raised">
@@ -993,26 +1003,27 @@ export default function ParentDetail() {
                       <div className="mt-1.5 flex items-center gap-2">
                         <span className="text-xs text-amber-400/80 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3 shrink-0" />
-                          Registration unpaid — RM{" "}
-                          {child.service_types
-                            .reduce(
-                              (sum, s) => sum + Number(s.registration_fee),
-                              0,
-                            )
-                            .toFixed(2)}
+                          {t("parentDetail.registrationUnpaid", {
+                            amount: child.service_types
+                              .reduce(
+                                (sum, s) => sum + Number(s.registration_fee),
+                                0,
+                              )
+                              .toFixed(2),
+                          })}
                         </span>
                         <Button
                           variant="warning"
                           size="sm"
                           onClick={() => handlePayRegistration(child)}
                         >
-                          Pay now
+                          {t("parentDetail.payNow")}
                         </Button>
                       </div>
                     ) : (
                       <div className="mt-1.5 flex items-center gap-1 text-xs text-emerald-400/70">
                         <CheckCircle2 className="w-3 h-3 shrink-0" />
-                        Registration paid
+                        {t("parentDetail.registrationPaid")}
                         {pending?.registration_payment && (
                           <span className="text-white/30">
                             ·{" "}
@@ -1046,12 +1057,12 @@ export default function ParentDetail() {
                       {child.is_active ? (
                         <>
                           <UserCheck className="w-3.5 h-3.5" />
-                          Active
+                          {t("parentDetail.active")}
                         </>
                       ) : (
                         <>
                           <UserX className="w-3.5 h-3.5" />
-                          Inactive
+                          {t("parentDetail.inactive")}
                         </>
                       )}
                     </Button>
@@ -1068,16 +1079,10 @@ export default function ParentDetail() {
         <div className="px-6 py-4 border-b border-surface-raised flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white/70">
-              Payment History
+              {t("parentDetail.paymentHistory")}
             </h2>
             <p className="text-xs text-white/30 mt-0.5">
-              {history.sessions.length + history.registration_payments.length}{" "}
-              entr
-              {history.sessions.length +
-                history.registration_payments.length !==
-              1
-                ? "ies"
-                : "y"}
+              {t("parentDetail.entries", { count: totalEntries })}
             </p>
           </div>
           <Button
@@ -1086,18 +1091,17 @@ export default function ParentDetail() {
             disabled={activeChildren.length === 0}
           >
             <CreditCard className="w-3.5 h-3.5" />
-            Record Payment
+            {t("parentDetail.recordPayment")}
           </Button>
         </div>
 
         {history.sessions.length === 0 &&
         history.registration_payments.length === 0 ? (
           <p className="px-6 py-8 text-sm text-white/30 text-center">
-            No payments recorded yet.
+            {t("parentDetail.noPaymentsYet")}
           </p>
         ) : (
           <div className="divide-y divide-surface-raised">
-            {/* Merge sessions and registration payments, sorted newest first */}
             {[
               ...history.sessions.map((s) => ({
                 type: "session" as const,
@@ -1125,7 +1129,8 @@ export default function ParentDetail() {
                       <div>
                         <p className="text-sm font-medium text-white flex items-center gap-2">
                           <Receipt className="w-3.5 h-3.5 text-emerald-400/70 shrink-0" />
-                          Registration — {rp.child_name}
+                          {t("parentDetail.registrationLabel")} —{" "}
+                          {rp.child_name}
                           <span className="text-white/40 font-normal text-xs capitalize">
                             · {rp.payment_method.replace("_", " ")}
                           </span>
@@ -1136,7 +1141,7 @@ export default function ParentDetail() {
                             month: "short",
                             year: "numeric",
                           })}{" "}
-                          · Recorded by {rp.recorded_by}
+                          · {t("common.recordedBy")} {rp.recorded_by}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-emerald-400/80 tabular-nums">
@@ -1174,7 +1179,7 @@ export default function ParentDetail() {
                               year: "numeric",
                             },
                           )}{" "}
-                          · Recorded by {session.recorded_by}
+                          · {t("common.recordedBy")} {session.recorded_by}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 text-white/30">
@@ -1201,7 +1206,7 @@ export default function ParentDetail() {
                               {fp.child_name}
                             </span>
                             <span className="text-white/40">
-                              {MONTH_NAMES[fp.month - 1]} {fp.year}
+                              {months[fp.month - 1]} {fp.year}
                             </span>
                             <span className="text-white/60">
                               RM {fp.amount}
@@ -1210,14 +1215,14 @@ export default function ParentDetail() {
                         ))}
                         {session.notes && (
                           <p className="text-xs text-white/30 pt-2 italic">
-                            Note: {session.notes}
+                            {t("parentDetail.note")} {session.notes}
                           </p>
                         )}
                         {session.receipt_key && (
                           <div className="flex items-center gap-2 pt-2 border-t border-surface-raised/50">
                             <Paperclip className="w-3 h-3 text-white/30 shrink-0" />
                             <span className="text-xs text-white/30 flex-1">
-                              Receipt attached
+                              {t("parentDetail.receiptAttached")}
                             </span>
                             <button
                               onClick={async () => {
@@ -1240,7 +1245,7 @@ export default function ParentDetail() {
                               className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"
                             >
                               <Eye className="w-3 h-3" />
-                              Preview
+                              {t("parentDetail.preview")}
                             </button>
                             <button
                               onClick={async () => {
@@ -1257,7 +1262,7 @@ export default function ParentDetail() {
                               className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"
                             >
                               <Download className="w-3 h-3" />
-                              Download
+                              {t("parentDetail.download")}
                             </button>
                           </div>
                         )}

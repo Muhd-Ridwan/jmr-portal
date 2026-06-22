@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, LogOut, Settings, Layers, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +35,6 @@ export default function Navbar() {
     <header className="bg-surface text-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
-          {/* Logo — clicks back to dashboard */}
           <Link
             to="/dashboard"
             className="flex items-center gap-3 shrink-0 hover:opacity-80 transition-opacity"
@@ -44,7 +45,6 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Avatar dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
@@ -80,7 +80,7 @@ export default function Navbar() {
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-surface-raised hover:text-white transition-colors"
                   >
                     <Settings className="w-4 h-4 text-white/40" />
-                    Edit Profile
+                    {t("navbar.editProfile")}
                   </button>
                   {(user?.role === "admin" || user?.role === "superadmin") && (
                     <button
@@ -91,7 +91,7 @@ export default function Navbar() {
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-surface-raised hover:text-white transition-colors"
                     >
                       <Layers className="w-4 h-4 text-white/40" />
-                      Manage Services
+                      {t("navbar.manageServices")}
                     </button>
                   )}
                   {(user?.role === "admin" || user?.role === "superadmin") && (
@@ -103,16 +103,15 @@ export default function Navbar() {
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-surface-raised hover:text-white transition-colors"
                     >
                       <Users className="w-4 h-4 text-white/40" />
-                      Manage Users
+                      {t("navbar.manageUsers")}
                     </button>
                   )}
-
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
-                    Sign out
+                    {t("navbar.signOut")}
                   </button>
                 </div>
               </div>

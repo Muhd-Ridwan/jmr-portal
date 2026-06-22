@@ -35,6 +35,7 @@ export const updateProfile = (data: {
   email?: string;
   current_password?: string;
   new_password?: string;
+  language?: string;
 }) =>
   apiFetch("/users/me", {
     method: "PUT",

@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
+import i18next from "i18next";
+import { apiFetch } from "../api/client";
 
 interface AuthUser {
   id: number;
@@ -9,7 +11,7 @@ interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (accessToken: string, refreshToken: string) => void;
+  login: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => void;
   updateToken: (accessToken: string) => void;
   isAuthenticated: boolean;
@@ -37,10 +39,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return token ? parseJwt(token) : null;
   });
 
-  function login(accessToken: string, refreshToken: string) {
+  async function login(accessToken: string, refreshToken: string) {
     localStorage.setItem("access_token", accessToken);
     localStorage.setItem("refresh_token", refreshToken);
     setUser(parseJwt(accessToken));
+    try {
+      const profile = (await apiFetch("/users/me")) as { language?: string };
+      const lang = profile?.language || "en";
+      localStorage.setItem("user_language", lang);
+      i18next.changeLanguage(lang);
+    } catch {
+      // keep current language if fetch fails
+    }
   }
 
   function logout() {

@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { resetPassword } from "../api/auth";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
@@ -17,8 +19,9 @@ export default function ResetPassword() {
 
   function validate() {
     const e: Record<string, string> = {};
-    if (form.password.length < 8) e.password = "Min. 8 characters";
-    if (form.password !== form.confirm) e.confirm = "Passwords do not match";
+    if (form.password.length < 8) e.password = t("resetPassword.minChars");
+    if (form.password !== form.confirm)
+      e.confirm = t("resetPassword.passwordsNoMatch");
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -26,14 +29,14 @@ export default function ResetPassword() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) {
-      toast.error("Invalid or missing reset token");
+      toast.error(t("resetPassword.invalidToken"));
       return;
     }
     if (!validate()) return;
     setLoading(true);
     try {
       await resetPassword(token, form.password);
-      toast.success("Password updated. Please log in.");
+      toast.success(t("resetPassword.success"));
       navigate("/login");
     } catch (err) {
       toast.error((err as Error).message);
@@ -53,14 +56,14 @@ export default function ResetPassword() {
             </p>
           </div>
           <p className="text-white/70 text-xs text-center mb-6">
-            Set your new password below
+            {t("resetPassword.instruction")}
           </p>
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="New Password"
+                  placeholder={t("resetPassword.newPassword")}
                   value={form.password}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, password: e.target.value }))
@@ -71,7 +74,11 @@ export default function ResetPassword() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                  aria-label={showPassword ? "Hide Password" : "Show Password"}
+                  aria-label={
+                    showPassword
+                      ? t("resetPassword.hidePassword")
+                      : t("resetPassword.showPassword")
+                  }
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -90,19 +97,22 @@ export default function ResetPassword() {
               <div className="relative">
                 <input
                   type={showConfirm ? "text" : "password"}
-                  placeholder="Confirm Password"
+                  placeholder={t("resetPassword.confirmPassword")}
                   value={form.confirm}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, confirm: e.target.value }))
                   }
-                  className="w-full px-4 py-3.5 pr-12 bg-[#e8ede9] rounded-xl text-sm text-gray-800 placeholder-gray-500 outline-none
-  focus:ring-2 focus:ring-white/40 transition-all"
+                  className="w-full px-4 py-3.5 pr-12 bg-[#e8ede9] rounded-xl text-sm text-gray-800 placeholder-gray-500 outline-none focus:ring-2 focus:ring-white/40 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                  aria-label={showConfirm ? "Hide password" : "Show password"}
+                  aria-label={
+                    showConfirm
+                      ? t("resetPassword.hidePassword")
+                      : t("resetPassword.showPassword")
+                  }
                 >
                   {showConfirm ? (
                     <EyeOff className="w-4 h-4" />
@@ -122,10 +132,11 @@ export default function ResetPassword() {
               <button
                 type="submit"
                 disabled={loading || !token}
-                className="w-full py-3.5 bg-[#6ec24a] text-white text-sm font-semibold rounded-full hover:bg-[#5aad38]
-  disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-3.5 bg-[#6ec24a] text-white text-sm font-semibold rounded-full hover:bg-[#5aad38] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? "Saving..." : "Set New Password"}
+                {loading
+                  ? t("resetPassword.saving")
+                  : t("resetPassword.setNewPassword")}
               </button>
             </div>
           </form>

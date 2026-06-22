@@ -9,7 +9,9 @@ import {
   ChevronRightCircle,
   FileText,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
+import PrayerTimes from "../components/PrayerTimes";
 import { getParents, getMyProfile } from "../api/parents";
 import { getOverduePayments, getMyOverduePayments } from "../api/payments";
 import type { Parent, OverdueEntry, ParentDetail } from "../types";
@@ -61,35 +63,6 @@ function StatCard({
   );
 }
 
-// ── Admin dashboard ────────────────────────────────────────────────────────────
-
-const adminModules = [
-  {
-    icon: <Users className="w-5 h-5" />,
-    title: "Parents & Children",
-    description:
-      "Register new parents, manage their children, and update contact details.",
-    action: "Manage Parents",
-    to: "/parents",
-  },
-  {
-    icon: <BookOpen className="w-5 h-5" />,
-    title: "Payments",
-    description:
-      "View overdue payments and see which children have unpaid months.",
-    action: "View Overdue",
-    to: "/payments",
-  },
-  {
-    icon: <FileText className="w-5 h-5" />,
-    title: "Reports",
-    description:
-      "Generate and export payment history reports filtered by parent, child, or period.",
-    action: "Open Reports",
-    to: "/reports",
-  },
-];
-
 function AdminDashboard({
   greeting,
   dateLabel,
@@ -100,9 +73,34 @@ function AdminDashboard({
   timeLabel: string;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [parents, setParents] = useState<Parent[]>([]);
   const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const adminModules = [
+    {
+      icon: <Users className="w-5 h-5" />,
+      title: t("dashboard.modules.parentsAndChildren"),
+      description: t("dashboard.modules.parentsAndChildrenDesc"),
+      action: t("dashboard.modules.manageParents"),
+      to: "/parents",
+    },
+    {
+      icon: <BookOpen className="w-5 h-5" />,
+      title: t("dashboard.modules.payments"),
+      description: t("dashboard.modules.paymentsDesc"),
+      action: t("dashboard.modules.viewOverdue"),
+      to: "/payments",
+    },
+    {
+      icon: <FileText className="w-5 h-5" />,
+      title: t("dashboard.modules.reports"),
+      description: t("dashboard.modules.reportsDesc"),
+      action: t("dashboard.modules.openReports"),
+      to: "/reports",
+    },
+  ];
 
   useEffect(() => {
     async function load() {
@@ -134,11 +132,13 @@ function AdminDashboard({
           {dateLabel}
         </p>
         <h1 className="text-3xl font-bold text-white">
-          Welcome back, <span className="text-[#86efac]">{greeting}</span>
+          {t("dashboard.welcomeBack")}{" "}
+          <span className="text-[#86efac]">{greeting}</span>
         </h1>
         <p className="text-white/40 text-sm mt-1">
-          JMR Portal overview · {timeLabel}
+          {t("dashboard.overview")} · {timeLabel}
         </p>
+        <PrayerTimes />
       </div>
 
       {!loading && overdue.length > 0 && (
@@ -146,47 +146,50 @@ function AdminDashboard({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <p className="text-sm">
             <span className="font-semibold">
-              {overdue.length}{" "}
-              {overdue.length === 1 ? "child has" : "children have"}
+              {t("dashboard.childHasPending", { count: overdue.length })}
             </span>{" "}
-            pending payments
+            {t("dashboard.pendingPaymentsText")}
             {totalOverdueMonths > 0 &&
-              ` — ${totalOverdueMonths} month${totalOverdueMonths !== 1 ? "s" : ""} unpaid`}
+              ` — ${t("dashboard.monthsUnpaid", { count: totalOverdueMonths })}`}
             {overdue.some((e) => e.registration_pending) &&
-              " · registration fee pending"}
+              ` · ${t("dashboard.registrationFeePending")}`}
             .
           </p>
           <button
             onClick={() => navigate("/payments")}
             className="ml-auto text-xs font-medium underline hover:no-underline shrink-0"
           >
-            View all
+            {t("dashboard.viewAll")}
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard
-          label="Total Parents"
+          label={t("dashboard.totalParents")}
           value={loading ? "—" : parents.length}
           icon={<Users className="w-4 h-4" />}
-          sub={loading ? "" : `${parents.length} registered`}
+          sub={loading ? "" : `${parents.length} ${t("dashboard.registered")}`}
         />
         <StatCard
-          label="Pending Payments"
+          label={t("dashboard.pendingPayments")}
           value={loading ? "—" : overdue.length}
           icon={<CreditCard className="w-4 h-4" />}
           sub={
-            overdue.length > 0 ? "Children with pending fees" : "All up to date"
+            overdue.length > 0
+              ? t("dashboard.childrenWithPendingFees")
+              : t("dashboard.allUpToDate")
           }
           highlight={overdue.length > 0}
         />
         <StatCard
-          label="Pending Months"
+          label={t("dashboard.pendingMonths")}
           value={loading ? "—" : totalOverdueMonths}
           icon={<AlertTriangle className="w-4 h-4" />}
           sub={
-            totalOverdueMonths > 0 ? "Monthly fees unpaid" : "No pending months"
+            totalOverdueMonths > 0
+              ? t("dashboard.monthlyFeesUnpaid")
+              : t("dashboard.noPendingMonths")
           }
           highlight={totalOverdueMonths > 0}
         />
@@ -195,7 +198,9 @@ function AdminDashboard({
       <div className="bg-surface rounded-xl border border-surface-raised overflow-hidden">
         <div className="px-6 py-4 border-b border-surface-raised flex items-center gap-2">
           <LayoutGrid className="w-4 h-4 text-white/50" />
-          <h2 className="text-sm font-semibold text-white/70">Quick Access</h2>
+          <h2 className="text-sm font-semibold text-white/70">
+            {t("dashboard.quickAccess")}
+          </h2>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {adminModules.map((mod) => (
@@ -222,35 +227,6 @@ function AdminDashboard({
   );
 }
 
-// ── Parent dashboard ───────────────────────────────────────────────────────────
-
-const parentModules = [
-  {
-    icon: <Users className="w-5 h-5" />,
-    title: "My Children",
-    description:
-      "View your children's enrolment, services, and registration details.",
-    action: "View Children",
-    to: "/my-children",
-  },
-  {
-    icon: <BookOpen className="w-5 h-5" />,
-    title: "Payment Status",
-    description:
-      "Check whether any monthly fees are outstanding for your children.",
-    action: "View Payments",
-    to: "/my-payments",
-  },
-  {
-    icon: <FileText className="w-5 h-5" />,
-    title: "My Reports",
-    description:
-      "See your full payment history, collected totals, and outstanding fees by child or period.",
-    action: "View Report",
-    to: "/my-reports",
-  },
-];
-
 function ParentDashboard({
   greeting,
   dateLabel,
@@ -261,9 +237,34 @@ function ParentDashboard({
   timeLabel: string;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<ParentDetail | null>(null);
   const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const parentModules = [
+    {
+      icon: <Users className="w-5 h-5" />,
+      title: t("dashboard.modules.myChildren"),
+      description: t("dashboard.modules.myChildrenDesc"),
+      action: t("dashboard.modules.viewChildren"),
+      to: "/my-children",
+    },
+    {
+      icon: <BookOpen className="w-5 h-5" />,
+      title: t("dashboard.modules.paymentStatus"),
+      description: t("dashboard.modules.paymentStatusDesc"),
+      action: t("dashboard.modules.viewPayments"),
+      to: "/my-payments",
+    },
+    {
+      icon: <FileText className="w-5 h-5" />,
+      title: t("dashboard.modules.myReports"),
+      description: t("dashboard.modules.myReportsDesc"),
+      action: t("dashboard.modules.viewReport"),
+      to: "/my-reports",
+    },
+  ];
 
   useEffect(() => {
     async function load() {
@@ -296,9 +297,13 @@ function ParentDashboard({
           {dateLabel}
         </p>
         <h1 className="text-3xl font-bold text-white">
-          Welcome back, <span className="text-[#86efac]">{greeting}</span>
+          {t("dashboard.welcomeBack")}{" "}
+          <span className="text-[#86efac]">{greeting}</span>
         </h1>
-        <p className="text-white/40 text-sm mt-1">JMR Portal · {timeLabel}</p>
+        <p className="text-white/40 text-sm mt-1">
+          {t("dashboard.portal")} · {timeLabel}
+        </p>
+        <PrayerTimes />
       </div>
 
       {!loading && overdue.length > 0 && (
@@ -306,47 +311,50 @@ function ParentDashboard({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <p className="text-sm">
             <span className="font-semibold">
-              {overdue.length}{" "}
-              {overdue.length === 1 ? "child has" : "children have"}
+              {t("dashboard.childHasPending", { count: overdue.length })}
             </span>{" "}
-            pending payments
+            {t("dashboard.pendingPaymentsText")}
             {totalOverdueMonths > 0 &&
-              ` — ${totalOverdueMonths} month${totalOverdueMonths !== 1 ? "s" : ""} unpaid`}
+              ` — ${t("dashboard.monthsUnpaid", { count: totalOverdueMonths })}`}
             {overdue.some((e) => e.registration_pending) &&
-              " · registration fee pending"}
+              ` · ${t("dashboard.registrationFeePending")}`}
             .
           </p>
           <button
             onClick={() => navigate("/my-payments")}
             className="ml-auto text-xs font-medium underline hover:no-underline shrink-0"
           >
-            View
+            {t("dashboard.viewAll")}
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard
-          label="My Children"
+          label={t("dashboard.myChildren")}
           value={loading ? "—" : childrenCount}
           icon={<Users className="w-4 h-4" />}
-          sub={loading ? "" : `${childrenCount} enrolled`}
+          sub={loading ? "" : `${childrenCount} ${t("dashboard.enrolled")}`}
         />
         <StatCard
-          label="Pending Payments"
+          label={t("dashboard.pendingPayments")}
           value={loading ? "—" : overdue.length}
           icon={<CreditCard className="w-4 h-4" />}
           sub={
-            overdue.length > 0 ? "Children with pending fees" : "All up to date"
+            overdue.length > 0
+              ? t("dashboard.childrenWithPendingFees")
+              : t("dashboard.allUpToDate")
           }
           highlight={overdue.length > 0}
         />
         <StatCard
-          label="Pending Months"
+          label={t("dashboard.pendingMonths")}
           value={loading ? "—" : totalOverdueMonths}
           icon={<AlertTriangle className="w-4 h-4" />}
           sub={
-            totalOverdueMonths > 0 ? "Monthly fees unpaid" : "No pending months"
+            totalOverdueMonths > 0
+              ? t("dashboard.monthlyFeesUnpaid")
+              : t("dashboard.noPendingMonths")
           }
           highlight={totalOverdueMonths > 0}
         />
@@ -355,7 +363,9 @@ function ParentDashboard({
       <div className="bg-surface rounded-xl border border-surface-raised overflow-hidden">
         <div className="px-6 py-4 border-b border-surface-raised flex items-center gap-2">
           <LayoutGrid className="w-4 h-4 text-white/50" />
-          <h2 className="text-sm font-semibold text-white/70">Quick Access</h2>
+          <h2 className="text-sm font-semibold text-white/70">
+            {t("dashboard.quickAccess")}
+          </h2>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {parentModules.map((mod) => (
@@ -382,10 +392,9 @@ function ParentDashboard({
   );
 }
 
-// ── Entry point ────────────────────────────────────────────────────────────────
-
 export default function Dashboard() {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -393,16 +402,17 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  const locale = i18n.language === "ms" ? "ms-MY" : "en-MY";
   const greeting = user?.name ?? "there";
   const dateLabel = now
-    .toLocaleDateString("en-MY", {
+    .toLocaleDateString(locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     })
     .toUpperCase();
-  const timeLabel = now.toLocaleTimeString("en-MY", {
+  const timeLabel = now.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });

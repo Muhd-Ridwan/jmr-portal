@@ -1,30 +1,19 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, AlertTriangle, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { getMyOverduePayments } from "../api/payments";
 import { getMyProfile } from "../api/parents";
 import type { OverdueEntry, Child } from "../types";
 import PageHeader from "../components/PageHeader";
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 export default function MyPayments() {
+  const { t } = useTranslation();
   const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
   const [unregistered, setUnregistered] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const months = t("common.months", { returnObjects: true }) as string[];
 
   useEffect(() => {
     Promise.all([getMyOverduePayments(), getMyProfile()])
@@ -44,13 +33,15 @@ export default function MyPayments() {
   return (
     <div className="max-w-4xl mx-auto px-6 sm:px-8 py-8 space-y-6">
       <PageHeader
-        title="Payment Status"
-        description="Outstanding monthly fees and registration fees for your children."
-        backTo={{ label: "Dashboard", to: "/dashboard" }}
+        title={t("myPayments.title")}
+        description={t("myPayments.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
       />
 
       {loading ? (
-        <p className="text-sm text-white/30 text-center py-12">Loading...</p>
+        <p className="text-sm text-white/30 text-center py-12">
+          {t("common.loading")}
+        </p>
       ) : !hasIssues ? (
         <div className="bg-surface border border-surface-raised rounded-xl p-10 flex flex-col items-center gap-3 text-center">
           <div className="w-10 h-10 rounded-full bg-emerald-900/30 flex items-center justify-center">
@@ -58,29 +49,28 @@ export default function MyPayments() {
           </div>
           <div>
             <p className="text-sm font-medium text-white/70">
-              All payments up to date
+              {t("myPayments.allUpToDate")}
             </p>
             <p className="text-xs text-white/30 mt-1">
-              No outstanding fees found.
+              {t("myPayments.noOutstanding")}
             </p>
           </div>
         </div>
       ) : (
         <div className="space-y-8">
-          {/* ── Overdue monthly fees ── */}
           {overdue.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest">
-                Overdue Monthly Fees
+                {t("myPayments.overdueMonthlyFees")}
               </h2>
               <div className="flex items-center gap-3 bg-red-900/30 border border-red-800/50 text-red-300 rounded-xl px-4 py-3">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <p className="text-sm">
                   <span className="font-semibold">
-                    {totalMonths} month{totalMonths !== 1 ? "s" : ""}
+                    {t("myPayments.monthsOutstanding", { count: totalMonths })}
                   </span>{" "}
-                  outstanding across {overdue.length}{" "}
-                  {overdue.length === 1 ? "child" : "children"}.
+                  {t("myPayments.outstanding")}{" "}
+                  {t("myPayments.child", { count: overdue.length })}.
                 </p>
               </div>
               <div className="space-y-3">
@@ -104,8 +94,9 @@ export default function MyPayments() {
                         </div>
                       </div>
                       <span className="text-xs font-semibold text-red-400 bg-red-900/30 border border-red-700/40 px-2.5 py-1 rounded-full shrink-0">
-                        {entry.overdue_count} month
-                        {entry.overdue_count !== 1 ? "s" : ""} overdue
+                        {t("myPayments.monthsOverdue", {
+                          count: entry.overdue_count,
+                        })}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -114,7 +105,7 @@ export default function MyPayments() {
                           key={`${m.month}-${m.year}`}
                           className="text-xs px-2.5 py-1 rounded-lg bg-surface-raised text-white/60 border border-white/10"
                         >
-                          {MONTH_NAMES[m.month - 1]} {m.year}
+                          {months[m.month - 1]} {m.year}
                         </span>
                       ))}
                     </div>
@@ -124,21 +115,21 @@ export default function MyPayments() {
             </section>
           )}
 
-          {/* ── Unpaid registration fees ── */}
           {unregistered.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest">
-                Unpaid Registration Fees
+                {t("myPayments.unpaidRegistrationFees")}
               </h2>
               <div className="flex items-center gap-3 bg-amber-900/20 border border-amber-800/40 text-amber-300 rounded-xl px-4 py-3">
                 <UserX className="w-4 h-4 shrink-0" />
                 <p className="text-sm">
                   <span className="font-semibold">
-                    {unregistered.length}{" "}
-                    {unregistered.length === 1 ? "child" : "children"}
+                    {t("myPayments.childNotPaid", {
+                      count: unregistered.length,
+                    })}
                   </span>{" "}
-                  {unregistered.length === 1 ? "has" : "have"} not yet paid the
-                  registration fee.
+                  {t("myPayments.hasHave", { count: unregistered.length })}{" "}
+                  {t("myPayments.notPaidReg")}
                 </p>
               </div>
               <div className="space-y-3">
@@ -158,16 +149,16 @@ export default function MyPayments() {
                         {child.service_types
                           ?.map((s) =>
                             s.name === "quran_only"
-                              ? "Quran Reading"
+                              ? t("myChildren.quranOnly")
                               : s.name === "tuition_and_quran"
-                                ? "Tuition + Quran"
+                                ? t("myChildren.tuitionAndQuran")
                                 : s.name,
                           )
                           .join(", ") || "—"}
                       </p>
                     </div>
                     <span className="text-xs font-semibold text-amber-400 bg-amber-900/30 border border-amber-700/40 px-2.5 py-1 rounded-full shrink-0">
-                      Reg. unpaid
+                      {t("myPayments.regUnpaid")}
                     </span>
                   </div>
                 ))}

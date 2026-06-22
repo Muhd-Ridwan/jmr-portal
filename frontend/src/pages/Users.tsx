@@ -9,6 +9,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import {
   getUsers,
@@ -24,29 +25,26 @@ import Button from "../components/Button";
 import FormField from "../components/FormField";
 import Input from "../components/Input";
 
-// ── Role badge ────────────────────────────────────────────────────────────────
-
 function RoleBadge({ role }: { role: string; isParent?: boolean }) {
+  const { t } = useTranslation();
   if (role === "superadmin")
     return (
       <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-300 border border-purple-700/40 font-medium">
-        Superadmin
+        {t("users.superadmin")}
       </span>
     );
   if (role === "admin")
     return (
       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-300 border border-amber-700/40 font-medium">
-        Admin
+        {t("users.admin")}
       </span>
     );
   return (
     <span className="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-white/50 border border-white/10 font-medium">
-      User
+      {t("users.userRole")}
     </span>
   );
 }
-
-// ── Create User Modal ─────────────────────────────────────────────────────────
 
 function CreateUserModal({
   mode,
@@ -57,6 +55,7 @@ function CreateUserModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -68,15 +67,15 @@ function CreateUserModal({
 
   async function handleSave() {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("users.modal.nameRequired"));
       return;
     }
     if (!form.email.trim()) {
-      toast.error("Email is required");
+      toast.error(t("users.modal.emailRequired"));
       return;
     }
     if (!form.password) {
-      toast.error("Password is required");
+      toast.error(t("users.modal.passwordRequired"));
       return;
     }
     setSaving(true);
@@ -101,29 +100,35 @@ function CreateUserModal({
 
   return (
     <Modal
-      title={mode === "admin" ? "Add Admin" : "Add Staff Account"}
+      title={
+        mode === "admin"
+          ? t("users.modal.addAdminTitle")
+          : t("users.modal.addStaffTitle")
+      }
       onClose={onClose}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t("users.modal.cancel")}
           </Button>
           <Button loading={saving} onClick={handleSave}>
-            {mode === "admin" ? "Create Admin" : "Create Staff Account"}
+            {mode === "admin"
+              ? t("users.modal.createAdmin")
+              : t("users.modal.createStaff")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <FormField label="Full Name" required>
+        <FormField label={t("users.modal.fullName")} required>
           <Input
             type="text"
-            placeholder="Full name"
+            placeholder={t("users.modal.fullName")}
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         </FormField>
-        <FormField label="Email" required>
+        <FormField label={t("users.modal.email")} required>
           <Input
             type="email"
             placeholder="email@example.com"
@@ -131,30 +136,30 @@ function CreateUserModal({
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
         </FormField>
-        <FormField label="Password" required>
+        <FormField label={t("users.modal.password")} required>
           <Input
             type="password"
-            placeholder="Set a password"
+            placeholder={t("users.modal.password")}
             value={form.password}
             onChange={(e) =>
               setForm((f) => ({ ...f, password: e.target.value }))
             }
           />
         </FormField>
-        <FormField label="Phone">
+        <FormField label={t("users.modal.phone")}>
           <Input
             type="text"
-            placeholder="Optional"
+            placeholder={t("common.optional")}
             value={form.phone_num}
             onChange={(e) =>
               setForm((f) => ({ ...f, phone_num: e.target.value }))
             }
           />
         </FormField>
-        <FormField label="Address">
+        <FormField label={t("users.modal.address")}>
           <Input
             type="text"
-            placeholder="Optional"
+            placeholder={t("common.optional")}
             value={form.address}
             onChange={(e) =>
               setForm((f) => ({ ...f, address: e.target.value }))
@@ -166,11 +171,10 @@ function CreateUserModal({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function Users() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isSuperadmin = user?.role === "superadmin";
 
   const [users, setUsers] = useState<StaffUser[]>([]);
@@ -231,7 +235,7 @@ export default function Users() {
     setDeletingId(u.id);
     try {
       await deleteUser(u.id);
-      toast.success(`${u.name} removed`);
+      toast.success(`${u.name} ${t("users.remove").toLowerCase()}`);
       load();
     } catch (err) {
       toast.error((err as Error).message);
@@ -243,9 +247,9 @@ export default function Users() {
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8 space-y-6">
       <PageHeader
-        title="Users"
-        description="Manage admin, staff and user accounts"
-        backTo={{ label: "Dashboard", to: "/dashboard" }}
+        title={t("users.title")}
+        description={t("users.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -254,7 +258,7 @@ export default function Users() {
               onClick={() => setCreateMode("user")}
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Staff
+              {t("users.addStaff")}
             </Button>
             {isSuperadmin && (
               <Button
@@ -263,7 +267,7 @@ export default function Users() {
                 onClick={() => setCreateMode("admin")}
               >
                 <Plus className="w-3.5 h-3.5" />
-                Add Admin
+                {t("users.addAdmin")}
               </Button>
             )}
           </div>
@@ -272,27 +276,26 @@ export default function Users() {
 
       {isSuperadmin ? (
         <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
-          {/* Desktop column headers — 4 cols: name+role | email | joined | action */}
           <div className="hidden sm:grid sm:grid-cols-[2fr_2fr_110px_96px] gap-6 px-6 py-3 border-b border-surface-raised">
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Name
+              {t("users.nameColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Email
+              {t("users.emailColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Joined
+              {t("users.joinedColumn")}
             </span>
             <span />
           </div>
 
           {loading ? (
             <p className="px-6 py-8 text-sm text-white/30 text-center">
-              Loading...
+              {t("users.loading")}
             </p>
           ) : users.length === 0 ? (
             <p className="px-6 py-8 text-sm text-white/30 text-center">
-              No users found.
+              {t("users.noUsers")}
             </p>
           ) : (
             <div className="divide-y divide-white/10">
@@ -308,7 +311,7 @@ export default function Users() {
                         : "bg-surface-raised text-white/60";
                 return (
                   <div key={u.id}>
-                    {/* ── Mobile card ── */}
+                    {/* Mobile card */}
                     <div className="sm:hidden px-5 py-4 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
@@ -345,15 +348,14 @@ export default function Users() {
                             className="hover:!text-red-400"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Remove
+                            {t("users.remove")}
                           </Button>
                         )}
                       </div>
                     </div>
 
-                    {/* ── Desktop row ── */}
+                    {/* Desktop row */}
                     <div className="hidden sm:grid sm:grid-cols-[2fr_2fr_110px_96px] gap-6 items-center px-6 py-3.5 hover:bg-white/[0.03] transition-colors">
-                      {/* Name + avatar + role badge */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColors}`}
@@ -375,12 +377,10 @@ export default function Users() {
                         </div>
                       </div>
 
-                      {/* Email */}
                       <p className="text-sm text-white/50 truncate">
                         {u.email}
                       </p>
 
-                      {/* Joined */}
                       <span className="text-xs text-white/30">
                         {new Date(u.created_at).toLocaleDateString("en-MY", {
                           day: "numeric",
@@ -389,7 +389,6 @@ export default function Users() {
                         })}
                       </span>
 
-                      {/* Actions */}
                       <div className="flex items-center justify-end gap-1">
                         {isSuperadmin &&
                           u.is_parent &&
@@ -398,7 +397,7 @@ export default function Users() {
                             <button
                               onClick={() => handleSendOnboarding(u)}
                               disabled={sendingId === u.id}
-                              title="Send onboarding link"
+                              title={t("users.sendOnboarding")}
                               className="p-1.5 rounded-lg text-white/30 hover:text-[#86efac] hover:bg-primary/10 transition-colors disabled:opacity-30"
                             >
                               <Send className="w-4 h-4" />
@@ -410,8 +409,8 @@ export default function Users() {
                             disabled={togglingParentId === u.id}
                             title={
                               u.parent_is_active
-                                ? "Deactivate parent"
-                                : "Activate parent"
+                                ? t("users.deactivateParent")
+                                : t("users.activateParent")
                             }
                             className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${
                               u.parent_is_active
@@ -430,7 +429,7 @@ export default function Users() {
                           <button
                             onClick={() => handleDelete(u)}
                             disabled={deletingId === u.id}
-                            title={`Remove ${u.name}`}
+                            title={`${t("users.remove")} ${u.name}`}
                             className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-30"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -451,10 +450,10 @@ export default function Users() {
           </div>
           <div>
             <p className="text-sm font-medium text-white/70">
-              Create a staff account
+              {t("users.createStaff")}
             </p>
             <p className="text-xs text-white/30 mt-1">
-              Use the "Add Staff" button above to create a new staff login.
+              {t("users.createStaffDesc")}
             </p>
           </div>
         </div>

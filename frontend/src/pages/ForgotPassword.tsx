@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { forgotPassword } from "../api/auth";
 import { ChevronLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { forgotPassword } from "../api/auth";
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -36,24 +38,23 @@ export default function ForgotPassword() {
           {sent ? (
             <div className="text-center space-y-4">
               <p className="text-white text-sm">
-                If that email exists, a reset link has been sent. Check your
-                inbox
+                {t("forgotPassword.successMessage")}
               </p>
               <Link
                 to="/login"
                 className="inline-flex items-center gap-0.5 text-white/80 text-xs hover:text-white transition-colors"
               >
-                <ChevronLeft size={12} /> Back to login
+                <ChevronLeft size={12} /> {t("forgotPassword.backToLogin")}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="text-white/70 text-xs text-center mb-2">
-                Enter your email and we'll send you a reset link.
+                {t("forgotPassword.instruction")}
               </p>
               <input
                 type="email"
-                placeholder="Email"
+                placeholder={t("common.email")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -65,7 +66,9 @@ export default function ForgotPassword() {
                   disabled={loading}
                   className="w-full py-3.5 bg-[#6ec24a] text-white text-sm font-semibold rounded-full hover:bg-[#5aad38] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                 >
-                  {loading ? "Sending..." : "Send Reset Link"}
+                  {loading
+                    ? t("forgotPassword.sending")
+                    : t("forgotPassword.sendResetLink")}
                 </button>
               </div>
               <div className="flex justify-center">
@@ -73,7 +76,7 @@ export default function ForgotPassword() {
                   to="/login"
                   className="inline-flex items-center gap-0.5 text-white/80 text-xs hover:text-white transition-colors"
                 >
-                  <ChevronLeft size={12} /> Back to login
+                  <ChevronLeft size={12} /> {t("forgotPassword.backToLogin")}
                 </Link>
               </div>
             </form>

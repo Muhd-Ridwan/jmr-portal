@@ -38,7 +38,7 @@ export async function apiFetch(
     throw new Error("Network error — please check your connection");
   }
 
-  if (res.status === 401) {
+  if (res.status === 401 && token) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;

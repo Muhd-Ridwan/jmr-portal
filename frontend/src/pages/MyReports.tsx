@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Filter, FileText, Eye, ChevronDown, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
@@ -9,21 +10,6 @@ import { getMyPaymentSummary } from "../api/reports";
 import { getReceiptUrl } from "../api/payments";
 import type { Child, ReportChild } from "../types";
 import type { MyReportData } from "../api/reports";
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from(
@@ -65,7 +51,10 @@ function ReceiptPreviewModal({
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative bg-surface border border-surface-raised rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-surface-raised shrink-0">
-          <span className="text-sm font-medium text-white/70">Receipt</span>
+          <span className="text-sm font-medium text-white/70">
+            {/* Receipt label is intentionally untranslated in preview header */}
+            Receipt
+          </span>
           <button
             onClick={onClose}
             className="text-white/30 hover:text-white/70 transition-colors"
@@ -98,6 +87,8 @@ function ReceiptPreviewModal({
 }
 
 function ChildAccordion({ child }: { child: ReportChild }) {
+  const { t } = useTranslation();
+  const months = t("common.months", { returnObjects: true }) as string[];
   const [open, setOpen] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<{
     url: string;
@@ -115,24 +106,23 @@ function ChildAccordion({ child }: { child: ReportChild }) {
   return (
     <>
       <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
-        {/* Header */}
         <button
           className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors text-left"
           onClick={() => setOpen((v) => !v)}
         >
-          {/* Avatar */}
           <div className="w-9 h-9 rounded-full bg-surface-raised flex items-center justify-center text-sm font-bold text-white/70 shrink-0">
             {initial}
           </div>
 
-          {/* Name + services */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-white text-sm">
                 {child.child_name}
               </span>
               <Badge variant={child.is_active ? "green" : "gray"}>
-                {child.is_active ? "Active" : "Inactive"}
+                {child.is_active
+                  ? t("myReports.active")
+                  : t("myReports.inactive")}
               </Badge>
             </div>
             {child.service_names.length > 0 && (
@@ -142,20 +132,21 @@ function ChildAccordion({ child }: { child: ReportChild }) {
             )}
           </div>
 
-          {/* Amounts summary */}
           <div className="hidden sm:flex flex-col items-end gap-0.5 shrink-0 text-right">
             {amountPaid > 0 && (
               <span className="text-xs font-medium text-green-400">
-                {fmtRM(amountPaid)} paid
+                {fmtRM(amountPaid)} {t("myReports.paid")}
               </span>
             )}
             {amountDue > 0 && (
               <span className="text-xs font-medium text-red-400">
-                {fmtRM(amountDue)} due
+                {fmtRM(amountDue)} {t("myReports.due")}
               </span>
             )}
             {amountPaid === 0 && amountDue === 0 && (
-              <span className="text-xs text-white/30">No records</span>
+              <span className="text-xs text-white/30">
+                {t("myReports.noRecords")}
+              </span>
             )}
           </div>
 
@@ -164,17 +155,15 @@ function ChildAccordion({ child }: { child: ReportChild }) {
           />
         </button>
 
-        {/* Body */}
         {open && (
           <div className="border-t border-white/10">
-            {/* Registration row */}
             <div
               className={`flex items-center justify-between px-5 py-3 border-b border-white/10 ${
                 child.registration.paid ? "bg-green-900/10" : "bg-red-900/10"
               }`}
             >
               <span className="text-xs font-medium text-white/60">
-                Registration fee
+                {t("myReports.registrationFee")}
               </span>
               {child.registration.paid ? (
                 <div className="flex items-center gap-3 text-right">
@@ -188,14 +177,13 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                   <span className="text-xs font-semibold text-green-400">
                     {fmtRM(child.registration.amount!)}
                   </span>
-                  <Badge variant="green">Paid</Badge>
+                  <Badge variant="green">{t("common.paid")}</Badge>
                 </div>
               ) : (
-                <Badge variant="red">Unpaid</Badge>
+                <Badge variant="red">{t("common.unpaid")}</Badge>
               )}
             </div>
 
-            {/* Monthly fees table */}
             <div className="px-5 py-4">
               {child.months.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -203,22 +191,22 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                     <thead>
                       <tr className="border-b border-surface-raised">
                         <th className="pb-2 pr-4 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Month
+                          {t("myReports.columnMonth")}
                         </th>
                         <th className="pb-2 pr-4 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Year
+                          {t("myReports.columnYear")}
                         </th>
                         <th className="pb-2 pr-4 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Amount
+                          {t("myReports.columnAmount")}
                         </th>
                         <th className="pb-2 pr-4 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Status
+                          {t("myReports.columnStatus")}
                         </th>
                         <th className="pb-2 pr-4 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Date Paid
+                          {t("myReports.columnDatePaid")}
                         </th>
                         <th className="pb-2 font-semibold text-white/30 uppercase tracking-widest text-left">
-                          Receipt
+                          {t("myReports.columnReceipt")}
                         </th>
                       </tr>
                     </thead>
@@ -229,7 +217,7 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                           className="border-t border-surface-raised/40"
                         >
                           <td className="py-2.5 pr-4 text-white/80">
-                            {MONTHS[m.month - 1]}
+                            {months[m.month - 1]}
                           </td>
                           <td className="py-2.5 pr-4 text-white/60">
                             {m.year}
@@ -239,7 +227,7 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                           </td>
                           <td className="py-2.5 pr-4">
                             <Badge variant={m.paid ? "green" : "red"}>
-                              {m.paid ? "Paid" : "Unpaid"}
+                              {m.paid ? t("common.paid") : t("common.unpaid")}
                             </Badge>
                           </td>
                           <td className="py-2.5 pr-4 text-white/40">
@@ -268,7 +256,7 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                                 className="flex items-center gap-1 text-[#86efac] hover:text-white transition-colors text-xs"
                               >
                                 <Paperclip className="w-3 h-3" />
-                                View
+                                {t("myReports.view")}
                               </button>
                             ) : (
                               <span className="text-white/20">—</span>
@@ -281,7 +269,7 @@ function ChildAccordion({ child }: { child: ReportChild }) {
                 </div>
               ) : (
                 <p className="text-xs text-white/40 italic py-2">
-                  No payment records for this period.
+                  {t("myReports.noPaymentRecords")}
                 </p>
               )}
             </div>
@@ -300,6 +288,8 @@ function ChildAccordion({ child }: { child: ReportChild }) {
 }
 
 export default function MyReports() {
+  const { t } = useTranslation();
+  const months = t("common.months", { returnObjects: true }) as string[];
   const [myChildren, setMyChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -371,36 +361,38 @@ export default function MyReports() {
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
       <PageHeader
-        title="My Payment Report"
-        description="View your payment history and outstanding fees."
-        backTo={{ label: "Dashboard", to: "/dashboard" }}
+        title={t("myReports.title")}
+        description={t("myReports.description")}
+        backTo={{ label: t("nav.dashboard"), to: "/dashboard" }}
       />
 
       {/* Filters */}
       <div className="bg-surface border border-surface-raised rounded-xl p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-white/50" />
-          <h2 className="text-sm font-semibold text-white/70">Filters</h2>
+          <h2 className="text-sm font-semibold text-white/70">
+            {t("myReports.filters")}
+          </h2>
           <span className="text-xs text-white/30 ml-1">
-            — leave blank to see all
+            {t("myReports.leaveBlank")}
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Child
+              {t("myReports.childLabel")}
             </label>
             <select
               className={SELECT_CLS}
               value={selectedChildId}
               onChange={(e) => setSelectedChildId(e.target.value)}
             >
-              <option value="">All Children</option>
+              <option value="">{t("myReports.allChildren")}</option>
               {myChildren.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {c.is_active ? "" : " (Inactive)"}
+                  {c.is_active ? "" : ` (${t("common.inactive")})`}
                 </option>
               ))}
             </select>
@@ -408,14 +400,14 @@ export default function MyReports() {
 
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Year
+              {t("myReports.yearLabel")}
             </label>
             <select
               className={SELECT_CLS}
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             >
-              <option value="">All Years</option>
+              <option value="">{t("myReports.allYears")}</option>
               {YEARS.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -426,7 +418,7 @@ export default function MyReports() {
 
           <div>
             <label className="block text-xs text-white/50 mb-1.5 font-medium uppercase tracking-wide">
-              Month
+              {t("myReports.monthLabel")}
             </label>
             <select
               className={SELECT_CLS}
@@ -434,8 +426,8 @@ export default function MyReports() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               disabled={!selectedYear}
             >
-              <option value="">All Months</option>
-              {MONTHS.map((name, i) => (
+              <option value="">{t("myReports.allMonths")}</option>
+              {months.map((name, i) => (
                 <option key={i + 1} value={i + 1}>
                   {name}
                 </option>
@@ -447,10 +439,10 @@ export default function MyReports() {
         <div className="flex items-center gap-3">
           <Button onClick={handleShow} loading={loading}>
             <Eye className="w-3.5 h-3.5" />
-            Show
+            {t("myReports.show")}
           </Button>
           <Button variant="secondary" onClick={handleClear} disabled={loading}>
-            Clear
+            {t("myReports.clear")}
           </Button>
         </div>
       </div>
@@ -458,33 +450,32 @@ export default function MyReports() {
       {/* Results */}
       {reportData && (
         <div ref={resultsRef}>
-          {/* Stat cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             <div className="bg-surface border border-surface-raised rounded-xl px-4 py-3">
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Months Paid
+                {t("myReports.monthsPaid")}
               </p>
               <p className="text-xl font-bold text-white">{totalPaid}</p>
               <p className="text-xs text-white/30 mt-0.5">
-                {totalUnpaid} unpaid
+                {t("myReports.unpaidCount", { count: totalUnpaid })}
               </p>
             </div>
             <div className="bg-surface border border-green-900/50 rounded-xl px-4 py-3">
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Total Paid
+                {t("myReports.totalPaid")}
               </p>
               <p className="text-xl font-bold text-green-400">
                 {fmtRM(totalCollected)}
               </p>
               <p className="text-xs text-white/30 mt-0.5">
-                fees + registration
+                {t("myReports.feesAndReg")}
               </p>
             </div>
             <div
               className={`bg-surface border rounded-xl px-4 py-3 ${totalOutstanding > 0 ? "border-red-900/50" : "border-surface-raised"}`}
             >
               <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">
-                Outstanding
+                {t("myReports.outstanding")}
               </p>
               <p
                 className={`text-xl font-bold ${totalOutstanding > 0 ? "text-red-400" : "text-white"}`}
@@ -492,7 +483,7 @@ export default function MyReports() {
                 {fmtRM(totalOutstanding)}
               </p>
               <p className="text-xs text-white/30 mt-0.5">
-                {totalUnpaid} month{totalUnpaid !== 1 ? "s" : ""} unpaid
+                {t("myReports.monthsUnpaid", { count: totalUnpaid })}
               </p>
             </div>
           </div>
@@ -500,7 +491,7 @@ export default function MyReports() {
           {children.length === 0 ? (
             <div className="bg-surface border border-surface-raised rounded-xl p-10 flex flex-col items-center gap-3 text-white/30">
               <FileText className="w-8 h-8" />
-              <p className="text-sm">No data found for the selected filters.</p>
+              <p className="text-sm">{t("myReports.noDataFound")}</p>
             </div>
           ) : (
             <div className="space-y-2">

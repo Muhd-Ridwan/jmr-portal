@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_num VARCHAR(20),
     password VARCHAR(255),
     role_id INTEGER NOT NULL REFERENCES roles(id),
+    language VARCHAR(5) NOT NULL DEFAULT 'en',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS payment_sessions (
     total_amount NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('cash', 'bank_transfer', 'online')),
     notes TEXT,
+    receipt_key TEXT,
     paid_at TIMESTAMPTZ NOT NULL,
     created_by INTEGER NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()

@@ -1,20 +1,30 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { Home, Users, CreditCard, LogOut } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
-
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: <Home className="w-5 h-5" /> },
-  { to: "/parents", label: "Parents", icon: <Users className="w-5 h-5" /> },
-  {
-    to: "/payments",
-    label: "Payments",
-    icon: <CreditCard className="w-5 h-5" />,
-  },
-];
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const navItems = [
+    {
+      to: "/dashboard",
+      label: t("nav.dashboard"),
+      icon: <Home className="w-5 h-5" />,
+    },
+    {
+      to: "/parents",
+      label: t("nav.parents"),
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
+      to: "/payments",
+      label: t("nav.payments"),
+      icon: <CreditCard className="w-5 h-5" />,
+    },
+  ];
 
   function handleLogout() {
     logout();
@@ -23,7 +33,6 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 shrink-0 bg-white border-r border-gray-200 flex flex-col min-h-screen">
-      {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="JMR Portal" className="h-8 w-auto" />
@@ -33,7 +42,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.map((item) => (
           <NavLink
@@ -54,7 +62,6 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User + Logout */}
       <div className="px-3 py-4 border-t border-gray-200">
         <div className="px-3 py-2 mb-1">
           <p className="text-xs font-medium text-gray-800 truncate">
@@ -68,7 +75,7 @@ export default function Sidebar() {
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
           <LogOut className="w-5 h-5" />
-          Logout
+          {t("nav.logout")}
         </button>
       </div>
     </aside>

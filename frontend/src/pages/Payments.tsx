@@ -2,32 +2,23 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowRight, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import { getOverduePayments, getUnpaidRegistrations } from "../api/payments";
 import type { OverdueEntry, UnregisteredChild } from "../types";
 import PageHeader from "../components/PageHeader";
 
-const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 export default function Payments() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
   const [unregistered, setUnregistered] = useState<UnregisteredChild[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const monthsShort = t("common.monthsShort", {
+    returnObjects: true,
+  }) as string[];
 
   useEffect(() => {
     if (user && user.role === "user") navigate("/dashboard", { replace: true });
@@ -55,21 +46,21 @@ export default function Payments() {
   return (
     <div className="max-w-7xl mx-auto px-6 sm:px-8 py-8 space-y-8">
       <PageHeader
-        title="Payments"
-        description="Outstanding monthly fees and unpaid registration fees."
+        title={t("payments.title")}
+        description={t("payments.description")}
       />
 
-      {/* ── Overdue monthly fees ─────────────────────────────────────────────── */}
+      {/* Overdue monthly fees */}
       <section className="space-y-4">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest">
-          Overdue Monthly Fees
+          {t("payments.overdueMonthlyFees")}
         </h2>
 
         {!loading && overdue.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="bg-surface border border-surface-raised rounded-xl px-5 py-4">
               <p className="text-xs text-white/40 uppercase tracking-widest">
-                Overdue Children
+                {t("payments.overdueChildren")}
               </p>
               <p className="text-2xl font-bold text-white mt-1">
                 {overdue.length}
@@ -77,7 +68,7 @@ export default function Payments() {
             </div>
             <div className="bg-surface border border-surface-raised rounded-xl px-5 py-4">
               <p className="text-xs text-white/40 uppercase tracking-widest">
-                Total Months Owed
+                {t("payments.totalMonthsOwed")}
               </p>
               <p className="text-2xl font-bold text-white mt-1">
                 {overdue.reduce((sum, e) => sum + e.overdue_count, 0)}
@@ -85,7 +76,7 @@ export default function Payments() {
             </div>
             <div className="bg-surface border border-surface-raised rounded-xl px-5 py-4 col-span-2 sm:col-span-1">
               <p className="text-xs text-white/40 uppercase tracking-widest">
-                Amount Owed
+                {t("payments.amountOwed")}
               </p>
               <p className="text-2xl font-bold text-red-400 mt-1">
                 RM {totalOwed.toFixed(2)}
@@ -97,27 +88,27 @@ export default function Payments() {
         <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
           <div className="hidden sm:grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-6 py-3 border-b border-surface-raised">
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Child
+              {t("payments.childColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Parent
+              {t("payments.parentColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest text-right">
-              Monthly Fee
+              {t("payments.monthlyFeeColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest text-right">
-              Months Owed
+              {t("payments.monthsOwedColumn")}
             </span>
             <span />
           </div>
 
           {loading ? (
             <p className="px-6 py-8 text-sm text-white/30 text-center">
-              Loading...
+              {t("payments.loading")}
             </p>
           ) : overdue.length === 0 ? (
             <p className="px-6 py-10 text-sm text-white/30 text-center">
-              No overdue monthly payments. All children are up to date.
+              {t("payments.noOverdue")}
             </p>
           ) : (
             <div className="divide-y divide-surface-raised">
@@ -135,15 +126,14 @@ export default function Payments() {
                       </p>
                       <span className="flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">
                         <AlertTriangle className="w-3 h-3" />
-                        {entry.overdue_count} month
-                        {entry.overdue_count !== 1 ? "s" : ""}
+                        {t("payments.months", { count: entry.overdue_count })}
                       </span>
                     </div>
                     <p className="text-xs text-white/40">{entry.parent_name}</p>
                     <p className="text-xs text-white/30">
                       {entry.overdue_months
                         .slice(0, 3)
-                        .map((m) => `${MONTH_NAMES[m.month - 1]} ${m.year}`)
+                        .map((m) => `${monthsShort[m.month - 1]} ${m.year}`)
                         .join(", ")}
                       {entry.overdue_months.length > 3 &&
                         ` +${entry.overdue_months.length - 3} more`}
@@ -157,7 +147,7 @@ export default function Payments() {
                       <p className="text-xs text-white/30 mt-0.5">
                         {entry.overdue_months
                           .slice(0, 2)
-                          .map((m) => `${MONTH_NAMES[m.month - 1]} ${m.year}`)
+                          .map((m) => `${monthsShort[m.month - 1]} ${m.year}`)
                           .join(", ")}
                         {entry.overdue_months.length > 2 &&
                           ` +${entry.overdue_months.length - 2} more`}
@@ -169,8 +159,7 @@ export default function Payments() {
                     </p>
                     <span className="flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-400/10 px-2.5 py-1 rounded-full justify-end">
                       <AlertTriangle className="w-3 h-3 shrink-0" />
-                      {entry.overdue_count} month
-                      {entry.overdue_count !== 1 ? "s" : ""}
+                      {t("payments.months", { count: entry.overdue_count })}
                     </span>
                     <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors" />
                   </div>
@@ -181,17 +170,17 @@ export default function Payments() {
         </div>
       </section>
 
-      {/* ── Unpaid registration fees ─────────────────────────────────────────── */}
+      {/* Unpaid registration fees */}
       <section className="space-y-4">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest">
-          Unpaid Registration Fees
+          {t("payments.unpaidRegistrationFees")}
         </h2>
 
         {!loading && unregistered.length > 0 && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-surface border border-surface-raised rounded-xl px-5 py-4">
               <p className="text-xs text-white/40 uppercase tracking-widest">
-                Children Pending
+                {t("payments.childrenPending")}
               </p>
               <p className="text-2xl font-bold text-white mt-1">
                 {unregistered.length}
@@ -199,7 +188,7 @@ export default function Payments() {
             </div>
             <div className="bg-surface border border-surface-raised rounded-xl px-5 py-4">
               <p className="text-xs text-white/40 uppercase tracking-widest">
-                Total Owed
+                {t("payments.totalOwed")}
               </p>
               <p className="text-2xl font-bold text-amber-400 mt-1">
                 RM {totalRegOwed.toFixed(2)}
@@ -211,24 +200,24 @@ export default function Payments() {
         <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
           <div className="hidden sm:grid grid-cols-[1fr_1fr_auto_auto] gap-4 px-6 py-3 border-b border-surface-raised">
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Child
+              {t("payments.childColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
-              Parent
+              {t("payments.parentColumn")}
             </span>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-widest text-right">
-              Reg. Fee
+              {t("payments.regFeeColumn")}
             </span>
             <span />
           </div>
 
           {loading ? (
             <p className="px-6 py-8 text-sm text-white/30 text-center">
-              Loading...
+              {t("payments.loading")}
             </p>
           ) : unregistered.length === 0 ? (
             <p className="px-6 py-10 text-sm text-white/30 text-center">
-              All children have paid their registration fee.
+              {t("payments.noUnpaidRegistrations")}
             </p>
           ) : (
             <div className="divide-y divide-surface-raised">

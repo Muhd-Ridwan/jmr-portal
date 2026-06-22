@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Eye, Phone, EyeOff } from "lucide-react";
+import { Plus, Phone, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
-import { getParents, createParent, deleteParent } from "../api/parents";
+import { getParents, createParent } from "../api/parents";
 import type { Parent } from "../types";
 import PageHeader from "../components/PageHeader";
 import Table from "../components/Table";
@@ -37,7 +37,6 @@ export default function Parents() {
   const [form, setForm] = useState<ParentForm>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
 
   useEffect(() => {
@@ -89,17 +88,6 @@ export default function Parents() {
     }
   }
 
-  async function handleDelete(id: number) {
-    try {
-      await deleteParent(id);
-      toast.success(t("parents.successDeleted"));
-      setConfirmDelete(null);
-      setParents((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
   function closeModal() {
     setShowModal(false);
     setForm(emptyForm);
@@ -144,60 +132,6 @@ export default function Parents() {
         </div>
       ),
     },
-    {
-      header: t("parents.emailColumn"),
-      key: "email",
-      render: (row: Parent) => (
-        <span className="text-white/50">{row.email ?? "—"}</span>
-      ),
-    },
-    {
-      header: t("parents.addressColumn"),
-      key: "address",
-      render: (row: Parent) => (
-        <span className="text-white/50">{row.address ?? "—"}</span>
-      ),
-    },
-    {
-      header: t("parents.registeredColumn"),
-      key: "created_at",
-      render: (row: Parent) =>
-        new Date(row.created_at).toLocaleDateString("en-MY"),
-    },
-    {
-      header: "",
-      key: "actions",
-      className: "w-36",
-      render: (row: Parent) => (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => navigate(`/parents/${row.id}`)}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            {t("parents.viewButton")}
-          </Button>
-          {confirmDelete === row.id ? (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => handleDelete(row.id)}
-            >
-              {t("parents.confirmDelete")}
-            </Button>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(row.id)}
-              className="p-1.5 text-white/30 hover:text-red-400 transition-colors"
-              aria-label="Delete parent"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -212,15 +146,17 @@ export default function Parents() {
               variant="secondary"
               size="sm"
               onClick={() => setIncludeInactive((v) => !v)}
+              title={
+                includeInactive
+                  ? t("parents.hideInactive")
+                  : t("parents.showInactive")
+              }
             >
               {includeInactive ? (
                 <EyeOff className="w-3.5 h-3.5" />
               ) : (
                 <Eye className="w-3.5 h-3.5" />
               )}
-              {includeInactive
-                ? t("parents.hideInactive")
-                : t("parents.showInactive")}
             </Button>
             <Button onClick={() => setShowModal(true)}>
               <Plus className="w-4 h-4" />
@@ -234,6 +170,7 @@ export default function Parents() {
         columns={columns}
         data={parents}
         emptyMessage={loading ? t("common.loading") : t("parents.noParents")}
+        onRowClick={(row) => navigate(`/parents/${row.id}`)}
       />
 
       {showModal && (

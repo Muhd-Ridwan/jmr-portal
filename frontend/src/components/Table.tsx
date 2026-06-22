@@ -9,12 +9,14 @@ interface TableProps<T> {
   columns: Column<T>[];
   data: T[];
   emptyMessage?: string;
+  onRowClick?: (row: T) => void;
 }
 
 export default function Table<T extends { id: number }>({
   columns,
   data,
   emptyMessage = "No records found.",
+  onRowClick,
 }: TableProps<T>) {
   return (
     <div className="overflow-x-auto rounded-xl border border-surface-raised">
@@ -45,7 +47,8 @@ export default function Table<T extends { id: number }>({
             data.map((row) => (
               <tr
                 key={row.id}
-                className="hover:bg-surface-raised/50 transition-colors"
+                onClick={() => onRowClick?.(row)}
+                className={`hover:bg-surface-raised/50 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
               >
                 {columns.map((col) => (
                   <td

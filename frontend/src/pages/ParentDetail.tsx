@@ -353,8 +353,11 @@ function RecordPaymentModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
-  const months = t("common.months", { returnObjects: true }) as string[];
+  const monthsShort = t("common.monthsShort", {
+    returnObjects: true,
+  }) as string[];
   const now = new Date();
+  const YEARS = Array.from({ length: 4 }, (_, i) => now.getFullYear() - 1 + i);
   const [childMonths, setChildMonths] = useState<
     Record<number, { month: number; year: number }[]>
   >({});
@@ -568,44 +571,64 @@ function RecordPaymentModal({
                       m.year,
                     );
                     return (
-                      <div key={idx} className="flex items-center gap-2">
-                        <select
-                          value={m.month}
-                          onChange={(e) =>
-                            updateMonth(child.id, idx, "month", +e.target.value)
-                          }
-                          className="flex-1 px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
-                        >
-                          {months.map((name, i) => (
-                            <option key={i + 1} value={i + 1}>
+                      <div
+                        key={idx}
+                        className="space-y-2 pt-2 first:pt-0 border-t border-surface-raised/40 first:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={m.year}
+                            onChange={(e) =>
+                              updateMonth(
+                                child.id,
+                                idx,
+                                "year",
+                                +e.target.value,
+                              )
+                            }
+                            className="px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
+                          >
+                            {YEARS.map((y) => (
+                              <option key={y} value={y}>
+                                {y}
+                              </option>
+                            ))}
+                          </select>
+                          {alreadyPaid ? (
+                            <span className="flex items-center gap-0.5 text-xs text-amber-400 flex-1">
+                              <AlertTriangle className="w-3 h-3 shrink-0" />
+                              {t("common.paid")}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-white/40 flex-1">
+                              RM {child.monthly_fee}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => removeMonth(child.id, idx)}
+                            className="text-white/30 hover:text-red-400 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-6 gap-1">
+                          {monthsShort.map((name, i) => (
+                            <button
+                              key={i + 1}
+                              type="button"
+                              onClick={() =>
+                                updateMonth(child.id, idx, "month", i + 1)
+                              }
+                              className={`text-xs py-1.5 rounded-md font-medium transition-colors ${
+                                m.month === i + 1
+                                  ? "bg-primary text-white"
+                                  : "bg-surface-raised text-white/50 hover:text-white hover:bg-primary/30"
+                              }`}
+                            >
                               {name}
-                            </option>
+                            </button>
                           ))}
-                        </select>
-                        <Input
-                          type="number"
-                          value={m.year}
-                          onChange={(e) =>
-                            updateMonth(child.id, idx, "year", +e.target.value)
-                          }
-                          className="w-24 text-xs py-1.5"
-                        />
-                        {alreadyPaid ? (
-                          <span className="flex items-center gap-0.5 text-xs text-amber-400 shrink-0">
-                            <AlertTriangle className="w-3 h-3 shrink-0" />
-                            {t("common.paid")}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-white/40 shrink-0">
-                            RM {child.monthly_fee}
-                          </span>
-                        )}
-                        <button
-                          onClick={() => removeMonth(child.id, idx)}
-                          className="text-white/30 hover:text-red-400 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -950,15 +973,17 @@ export default function ParentDetail() {
               variant="secondary"
               size="sm"
               onClick={() => setIncludingInactive((v) => !v)}
+              title={
+                includingInactive
+                  ? t("parentDetail.hideInactive")
+                  : t("parentDetail.showInactive")
+              }
             >
               {includingInactive ? (
                 <EyeOff className="w-3.5 h-3.5" />
               ) : (
                 <Eye className="w-3.5 h-3.5" />
               )}
-              {includingInactive
-                ? t("parentDetail.hideInactive")
-                : t("parentDetail.showInactive")}
             </Button>
             <Button size="sm" onClick={() => setShowAddChild(true)}>
               <Plus className="w-3.5 h-3.5" />
@@ -1091,7 +1116,7 @@ export default function ParentDetail() {
             disabled={activeChildren.length === 0}
           >
             <CreditCard className="w-3.5 h-3.5" />
-            {t("parentDetail.recordPayment")}
+            {t("parentDetail.recordPaymentBtn")}
           </Button>
         </div>
 

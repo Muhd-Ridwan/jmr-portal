@@ -110,7 +110,13 @@
       "viewPayments": "View Payments",
       "myReports": "My Reports",
       "myReportsDesc": "See your full payment history, collected totals, and outstanding fees by child or period.",
-      "viewReport": "View Report"
+      "viewReport": "View Report",
+      "services": "Services",
+      "servicesDesc": "Manage service types, monthly fees, and registration fees.",
+      "donationFund": "Donation Fund",
+      "donationFundDesc": "Track donations received and monitor how funds are spent.",
+      "donationFundDescParent": "See how donation money is collected and where it goes.",
+      "viewFund": "View Fund"
     }
   },
   "login": {
@@ -190,7 +196,7 @@
     "paymentHistory": "Payment History",
     "entries_one": "{{count}} entry",
     "entries_other": "{{count}} entries",
-    "recordPayment": "Record Payment",
+    "recordPaymentBtn": "Record Payment",
     "noPaymentsYet": "No payments recorded yet.",
     "registrationLabel": "Registration",
     "note": "Note:",
@@ -481,5 +487,49 @@
     "columnReceipt": "Receipt",
     "inactive": "Inactive",
     "active": "Active"
+  },
+  "donations": {
+    "title": "Donation Fund",
+    "description": "Track donations received and expenses made.",
+    "totalReceived": "Total Received",
+    "totalSpent": "Total Spent",
+    "balance": "Balance",
+    "addTransaction": "Add Transaction",
+    "filterAll": "All",
+    "filterCredit": "Received",
+    "filterDebit": "Expenses",
+    "typeCredit": "Donation Received",
+    "typeDebit": "Expense",
+    "noTransactions": "No transactions recorded yet.",
+    "columnDate": "Date",
+    "columnType": "Type",
+    "columnAmount": "Amount",
+    "columnDescription": "Description",
+    "columnReceipt": "Receipt",
+    "recordedBy": "Recorded by",
+    "preview": "Preview",
+    "download": "Download",
+    "deleteConfirm": "Delete this transaction?",
+    "modal": {
+      "addTitle": "Add Transaction",
+      "editTitle": "Edit Transaction",
+      "typeLabel": "Type",
+      "credit": "Donation Received",
+      "debit": "Expense",
+      "amountLabel": "Amount (RM)",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "e.g. Chairs, whiteboard, stationery...",
+      "dateLabel": "Date",
+      "receiptLabel": "Receipt",
+      "attachReceipt": "Attach receipt (PDF, PNG, JPG)",
+      "cancel": "Cancel",
+      "save": "Save",
+      "amountRequired": "Amount is required",
+      "dateRequired": "Date is required",
+      "successCreate": "Transaction recorded",
+      "successUpdate": "Transaction updated",
+      "successDelete": "Transaction deleted",
+      "uploadFailed": "Failed to upload receipt to storage"
+    }
   }
 }

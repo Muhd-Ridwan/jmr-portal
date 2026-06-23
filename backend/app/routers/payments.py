@@ -192,6 +192,16 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
                 current = current.replace(month=current.month + 1)
 
         cursor.execute(
+            """SELECT COALESCE(SUM(st.registration_fee), 0) as total_reg_fee
+               FROM child_services cs
+               JOIN service_types st ON cs.service_type_id = st.id
+               WHERE cs.child_id = %s""",
+            (child_id,)
+        )
+        reg_fee_row = cursor.fetchone()
+        total_reg_fee = reg_fee_row["total_reg_fee"] if reg_fee_row else 0
+
+        cursor.execute(
             """SELECT rp.id, rp.paid_at, rp.amount, rp.payment_method, u.name as recorded_by
                FROM registration_payments rp
                JOIN users u ON rp.created_by = u.id
@@ -199,7 +209,7 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
             (child_id,)
         )
         reg = cursor.fetchone()
-        registration_paid = reg is not None
+        registration_paid = reg is not None or total_reg_fee == 0
         registration_payment = dict(reg) if reg else None
 
         return {
@@ -283,6 +293,7 @@ def get_unpaid_registration(conn=Depends(get_db), current_user=Depends(require_a
                      SELECT 1 FROM registration_payments rp WHERE rp.child_id = c.id
                  )
                GROUP BY c.id, c.name, p.id, p.parent_name
+               HAVING COALESCE(SUM(st.registration_fee), 0) > 0
                ORDER BY p.parent_name, c.name"""
         )
         return cursor.fetchall()
@@ -361,8 +372,18 @@ def get_my_overdue_payments(conn=Depends(get_db), current_user=Depends(get_curre
             cursor.execute("SELECT month, year FROM fee_payments WHERE child_id = %s", (child["child_id"],))
             paid = {(row["month"], row["year"]) for row in cursor.fetchall()}
 
+            cursor.execute(
+                """SELECT COALESCE(SUM(st.registration_fee), 0) as total_reg_fee
+                   FROM child_services cs
+                   JOIN service_types st ON cs.service_type_id = st.id
+                   WHERE cs.child_id = %s""",
+                (child["child_id"],)
+            )
+            reg_fee_row = cursor.fetchone()
+            total_reg_fee = reg_fee_row["total_reg_fee"] if reg_fee_row else 0
+
             cursor.execute("SELECT id FROM registration_payments WHERE child_id = %s", (child["child_id"],))
-            registration_pending = cursor.fetchone() is None
+            registration_pending = cursor.fetchone() is None and total_reg_fee > 0
 
             start = child["created_at"].date().replace(day=1)
             current = start
@@ -423,8 +444,18 @@ def get_overdue_payments(conn=Depends(get_db), current_user=Depends(require_admi
             )
             paid = {(row["month"], row["year"]) for row in cursor.fetchall()}
 
+            cursor.execute(
+                """SELECT COALESCE(SUM(st.registration_fee), 0) as total_reg_fee
+                   FROM child_services cs
+                   JOIN service_types st ON cs.service_type_id = st.id
+                   WHERE cs.child_id = %s""",
+                (child["child_id"],)
+            )
+            reg_fee_row = cursor.fetchone()
+            total_reg_fee = reg_fee_row["total_reg_fee"] if reg_fee_row else 0
+
             cursor.execute("SELECT id FROM registration_payments WHERE child_id = %s", (child["child_id"],))
-            registration_pending = cursor.fetchone() is None
+            registration_pending = cursor.fetchone() is None and total_reg_fee > 0
 
             start = child["created_at"].date().replace(day=1)
             current = start

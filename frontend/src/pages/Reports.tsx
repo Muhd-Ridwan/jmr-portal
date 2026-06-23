@@ -9,21 +9,6 @@ import { getParents, getParent } from "../api/parents";
 import { getPaymentSummary, exportReport } from "../api/reports";
 import type { Parent, Child, ReportParent } from "../types";
 
-const EN_MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from(
   { length: currentYear - 2019 },

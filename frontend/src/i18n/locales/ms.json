@@ -166,6 +166,8 @@
     "viewButton": "Lihat",
     "confirmDelete": "Sahkan",
     "noParents": "Belum ada ibu bapa yang didaftarkan.",
+    "searchPlaceholder": "Cari mengikut nama ibu bapa...",
+    "noSearchResults": "Tiada ibu bapa yang sepadan dengan carian anda.",
     "successRegistered": "Ibu bapa berjaya didaftarkan",
     "successDeleted": "Ibu bapa dipadam",
     "modal": {

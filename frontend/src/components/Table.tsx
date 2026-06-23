@@ -10,6 +10,7 @@ interface TableProps<T> {
   data: T[];
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  maxHeight?: string;
 }
 
 export default function Table<T extends { id: number }>({
@@ -17,11 +18,15 @@ export default function Table<T extends { id: number }>({
   data,
   emptyMessage = "No records found.",
   onRowClick,
+  maxHeight,
 }: TableProps<T>) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-surface-raised">
+    <div
+      className="overflow-x-auto rounded-xl border border-surface-raised"
+      style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
+    >
       <table className="w-full text-sm">
-        <thead>
+        <thead className={maxHeight ? "sticky top-0 z-10" : undefined}>
           <tr className="bg-surface border-b border-surface-raised">
             {columns.map((col) => (
               <th

@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { Filter, Download, FileText, Eye, ChevronDown } from "lucide-react";
+import { Filter, FileText, Eye, ChevronDown, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
-import Modal from "../components/Modal";
 import { getParents, getParent } from "../api/parents";
-import { getPaymentSummary } from "../api/reports";
+import { getPaymentSummary, exportReport } from "../api/reports";
 import type { Parent, Child, ReportParent } from "../types";
 
 const EN_MONTHS = [
@@ -45,172 +42,6 @@ function fmtRM(amount: number): string {
   return `RM ${amount.toFixed(2)}`;
 }
 
-interface ExportFilters {
-  parentName?: string;
-  childName?: string;
-  month?: number;
-  year?: number;
-}
-
-function generatePDF(data: ReportParent[], filters: ExportFilters): void {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("JMR Portal — Payment Report", 14, 18);
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  const genDate = new Date().toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  doc.text(`Generated: ${genDate}`, 14, 25);
-
-  const filterParts: string[] = [];
-  if (filters.parentName) filterParts.push(`Parent: ${filters.parentName}`);
-  if (filters.childName) filterParts.push(`Child: ${filters.childName}`);
-  if (filters.month && filters.year) {
-    filterParts.push(`Period: ${EN_MONTHS[filters.month - 1]} ${filters.year}`);
-  } else if (filters.year) {
-    filterParts.push(`Year: ${filters.year}`);
-  }
-
-  let yPos = 25;
-  if (filterParts.length > 0) {
-    doc.text(`Filters: ${filterParts.join(" | ")}`, 14, 31);
-    yPos = 31;
-  }
-  doc.setTextColor(0, 0, 0);
-  yPos += 10;
-
-  for (const parent of data) {
-    if (yPos > 265) {
-      doc.addPage();
-      yPos = 15;
-    }
-
-    doc.setFillColor(79, 140, 92);
-    doc.rect(14, yPos - 5, pageWidth - 28, 9, "F");
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text(
-      parent.is_active
-        ? parent.parent_name
-        : `${parent.parent_name} [INACTIVE]`,
-      16,
-      yPos + 1,
-    );
-    doc.setTextColor(0, 0, 0);
-    yPos += 11;
-
-    if (parent.children.length === 0) {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(130, 130, 130);
-      doc.text("No children found.", 18, yPos);
-      doc.setTextColor(0, 0, 0);
-      yPos += 8;
-      continue;
-    }
-
-    for (const child of parent.children) {
-      if (yPos > 255) {
-        doc.addPage();
-        yPos = 15;
-      }
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(40, 40, 40);
-      doc.text(
-        child.is_active ? child.child_name : `${child.child_name} [INACTIVE]`,
-        18,
-        yPos,
-      );
-      doc.setTextColor(0, 0, 0);
-      yPos += 5;
-
-      if (child.service_names.length > 0) {
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(100, 100, 100);
-        doc.text(child.service_names.join(" · "), 18, yPos);
-        doc.setTextColor(0, 0, 0);
-        yPos += 5;
-      }
-
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "normal");
-      if (child.registration.paid) {
-        doc.setTextColor(30, 120, 60);
-        const method = (child.registration.payment_method ?? "").replace(
-          "_",
-          " ",
-        );
-        doc.text(
-          `Registration Fee: PAID — ${fmtRM(child.registration.amount!)} | ${fmtDate(child.registration.paid_at!)} | ${method}`,
-          18,
-          yPos,
-        );
-      } else {
-        doc.setTextColor(180, 40, 40);
-        doc.text("Registration Fee: UNPAID", 18, yPos);
-      }
-      doc.setTextColor(0, 0, 0);
-      yPos += 5;
-
-      if (child.months.length > 0) {
-        autoTable(doc, {
-          startY: yPos,
-          margin: { left: 18, right: 14 },
-          head: [["Month", "Year", "Amount", "Status", "Date Paid"]],
-          body: child.months.map((m) => [
-            EN_MONTHS[m.month - 1],
-            String(m.year),
-            fmtRM(m.amount),
-            m.paid ? "PAID" : "UNPAID",
-            m.paid && m.paid_at ? fmtDate(m.paid_at) : "—",
-          ]),
-          styles: { fontSize: 8, cellPadding: 2 },
-          headStyles: { fillColor: [79, 140, 92] },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          didParseCell: (data: any) => {
-            if (data.section === "body" && data.column.index === 3) {
-              const val = String(data.cell.raw ?? "");
-              if (val === "UNPAID") {
-                data.cell.styles.textColor = [180, 40, 40];
-                data.cell.styles.fontStyle = "bold";
-              } else if (val === "PAID") {
-                data.cell.styles.textColor = [30, 120, 60];
-                data.cell.styles.fontStyle = "bold";
-              }
-            }
-          },
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        yPos = (doc as any).lastAutoTable.finalY + 6;
-      } else {
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(130, 130, 130);
-        doc.text("No payment records for this period.", 18, yPos);
-        doc.setTextColor(0, 0, 0);
-        yPos += 6;
-      }
-
-      yPos += 2;
-    }
-    yPos += 4;
-  }
-
-  doc.save("jmr-payment-report.pdf");
-}
-
 export default function Reports() {
   const { t } = useTranslation();
   const months = t("common.months", { returnObjects: true }) as string[];
@@ -224,7 +55,7 @@ export default function Reports() {
   const [reportData, setReportData] = useState<ReportParent[] | null>(null);
   const [openParentId, setOpenParentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showConfirmExport, setShowConfirmExport] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -273,6 +104,22 @@ export default function Reports() {
     }
   }
 
+  async function handleExport() {
+    setExportLoading(true);
+    try {
+      const filters: Record<string, number> = {};
+      if (selectedParentId) filters.parent_id = Number(selectedParentId);
+      if (selectedChildId) filters.child_id = Number(selectedChildId);
+      if (selectedYear) filters.year = Number(selectedYear);
+      if (selectedMonth) filters.month = Number(selectedMonth);
+      await exportReport(filters);
+    } catch {
+      toast.error(t("reports.exportFailed"));
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
   function handleClear() {
     setSelectedParentId("");
     setSelectedChildId("");
@@ -280,30 +127,6 @@ export default function Reports() {
     setSelectedMonth("");
     setReportData(null);
     setOpenParentId(null);
-  }
-
-  function handleExportClick() {
-    if (!reportData) return;
-    if (!selectedParentId && !selectedYear) {
-      setShowConfirmExport(true);
-    } else {
-      doExport();
-    }
-  }
-
-  function doExport() {
-    if (!reportData) return;
-    setShowConfirmExport(false);
-    generatePDF(reportData, {
-      parentName: selectedParentId
-        ? allParents.find((p) => p.id === Number(selectedParentId))?.parent_name
-        : undefined,
-      childName: selectedChildId
-        ? parentChildren.find((c) => c.id === Number(selectedChildId))?.name
-        : undefined,
-      month: selectedMonth ? Number(selectedMonth) : undefined,
-      year: selectedYear ? Number(selectedYear) : undefined,
-    });
   }
 
   const totalParents = reportData?.length ?? 0;
@@ -519,7 +342,12 @@ export default function Reports() {
 
           {/* Export button */}
           <div className="flex justify-end mb-4">
-            <Button size="sm" onClick={handleExportClick}>
+            <Button
+              size="sm"
+              onClick={handleExport}
+              loading={exportLoading}
+              disabled={reportData.length === 0}
+            >
               <Download className="w-3.5 h-3.5" />
               {t("reports.generateReport")}
             </Button>
@@ -531,183 +359,161 @@ export default function Reports() {
               <p className="text-sm">{t("reports.noDataFound")}</p>
             </div>
           ) : (
-            <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden divide-y divide-white/10">
-              {reportData.map((parent) => {
-                const isOpen = openParentId === parent.parent_id;
-                return (
-                  <div key={parent.parent_id}>
-                    <button
-                      className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors text-left"
-                      onClick={() =>
-                        setOpenParentId(isOpen ? null : parent.parent_id)
-                      }
-                    >
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-white">
-                          {parent.parent_name}
-                        </h3>
-                        <Badge variant={parent.is_active ? "green" : "gray"}>
-                          {parent.is_active
-                            ? t("reports.active")
-                            : t("reports.inactive")}
-                        </Badge>
-                        <span className="text-xs text-white/30">
-                          {t("reports.children", {
-                            count: parent.children.length,
-                          })}
-                        </span>
-                      </div>
-                      <ChevronDown
-                        className={`w-4 h-4 text-white/40 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
+            <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
+              <div className="overflow-y-auto max-h-[480px] sm:max-h-none divide-y divide-white/10">
+                {reportData.map((parent) => {
+                  const isOpen = openParentId === parent.parent_id;
+                  return (
+                    <div key={parent.parent_id}>
+                      <button
+                        className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors text-left"
+                        onClick={() =>
+                          setOpenParentId(isOpen ? null : parent.parent_id)
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-white">
+                            {parent.parent_name}
+                          </h3>
+                          <Badge variant={parent.is_active ? "green" : "gray"}>
+                            {parent.is_active
+                              ? t("reports.active")
+                              : t("reports.inactive")}
+                          </Badge>
+                          <span className="text-xs text-white/30">
+                            {t("reports.children", {
+                              count: parent.children.length,
+                            })}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 text-white/40 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
 
-                    {isOpen && (
-                      <div className="px-5 pb-5 pt-1 space-y-3 border-t border-white/10">
-                        {parent.children.length === 0 ? (
-                          <p className="text-sm text-white/40 py-2">
-                            {t("reports.noChildren")}
-                          </p>
-                        ) : (
-                          parent.children.map((child) => (
-                            <div
-                              key={child.child_id}
-                              className="rounded-lg border border-surface-raised p-4"
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-white text-sm">
-                                  {child.child_name}
-                                </span>
-                                <Badge
-                                  variant={child.is_active ? "green" : "gray"}
-                                >
-                                  {child.is_active
-                                    ? t("reports.active")
-                                    : t("reports.inactive")}
-                                </Badge>
-                              </div>
-                              {child.service_names.length > 0 && (
-                                <p className="text-xs text-white/40 mb-2">
-                                  {child.service_names.join(" · ")}
-                                </p>
-                              )}
-
-                              <p className="text-xs mb-3">
-                                {child.registration.paid ? (
-                                  <span className="text-green-400">
-                                    {t("reports.registrationPaid")}{" "}
-                                    {fmtRM(child.registration.amount!)} on{" "}
-                                    {fmtDate(child.registration.paid_at!)} (
-                                    {(
-                                      child.registration.payment_method ?? ""
-                                    ).replace("_", " ")}
-                                    )
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-1 space-y-3 border-t border-white/10">
+                          {parent.children.length === 0 ? (
+                            <p className="text-sm text-white/40 py-2">
+                              {t("reports.noChildren")}
+                            </p>
+                          ) : (
+                            parent.children.map((child) => (
+                              <div
+                                key={child.child_id}
+                                className="rounded-lg border border-surface-raised p-4"
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium text-white text-sm">
+                                    {child.child_name}
                                   </span>
-                                ) : (
-                                  <span className="text-red-400">
-                                    {t("reports.registrationUnpaid")}
-                                  </span>
-                                )}
-                              </p>
-
-                              {child.months.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="text-white/40 text-left">
-                                        <th className="pb-2 pr-4 font-medium">
-                                          {t("reports.columnMonth")}
-                                        </th>
-                                        <th className="pb-2 pr-4 font-medium">
-                                          {t("reports.columnYear")}
-                                        </th>
-                                        <th className="pb-2 pr-4 font-medium">
-                                          {t("reports.columnAmount")}
-                                        </th>
-                                        <th className="pb-2 pr-4 font-medium">
-                                          {t("reports.columnStatus")}
-                                        </th>
-                                        <th className="pb-2 font-medium">
-                                          {t("reports.columnDatePaid")}
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {child.months.map((m, i) => (
-                                        <tr
-                                          key={i}
-                                          className="border-t border-surface-raised/50"
-                                        >
-                                          <td className="py-1.5 pr-4 text-white/70">
-                                            {months[m.month - 1]}
-                                          </td>
-                                          <td className="py-1.5 pr-4 text-white/70">
-                                            {m.year}
-                                          </td>
-                                          <td className="py-1.5 pr-4 text-white/70">
-                                            {fmtRM(m.amount)}
-                                          </td>
-                                          <td className="py-1.5 pr-4">
-                                            <Badge
-                                              variant={m.paid ? "green" : "red"}
-                                            >
-                                              {m.paid
-                                                ? t("common.paid")
-                                                : t("common.unpaid")}
-                                            </Badge>
-                                          </td>
-                                          <td className="py-1.5 text-white/50">
-                                            {m.paid && m.paid_at
-                                              ? fmtDate(m.paid_at)
-                                              : "—"}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                  <Badge
+                                    variant={child.is_active ? "green" : "gray"}
+                                  >
+                                    {child.is_active
+                                      ? t("reports.active")
+                                      : t("reports.inactive")}
+                                  </Badge>
                                 </div>
-                              ) : (
-                                <p className="text-xs text-white/40 italic">
-                                  {t("reports.noPaymentRecords")}
+                                {child.service_names.length > 0 && (
+                                  <p className="text-xs text-white/40 mb-2">
+                                    {child.service_names.join(" · ")}
+                                  </p>
+                                )}
+
+                                <p className="text-xs mb-3">
+                                  {child.registration.paid ? (
+                                    <span className="text-green-400">
+                                      {t("reports.registrationPaid")}{" "}
+                                      {fmtRM(child.registration.amount!)} on{" "}
+                                      {fmtDate(child.registration.paid_at!)} (
+                                      {(
+                                        child.registration.payment_method ?? ""
+                                      ).replace("_", " ")}
+                                      )
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-400">
+                                      {t("reports.registrationUnpaid")}
+                                    </span>
+                                  )}
                                 </p>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                                {child.months.length > 0 ? (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="text-white/40 text-left">
+                                          <th className="pb-2 pr-4 font-medium">
+                                            {t("reports.columnMonth")}
+                                          </th>
+                                          <th className="pb-2 pr-4 font-medium">
+                                            {t("reports.columnYear")}
+                                          </th>
+                                          <th className="pb-2 pr-4 font-medium">
+                                            {t("reports.columnAmount")}
+                                          </th>
+                                          <th className="pb-2 pr-4 font-medium">
+                                            {t("reports.columnStatus")}
+                                          </th>
+                                          <th className="pb-2 font-medium">
+                                            {t("reports.columnDatePaid")}
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {child.months.map((m, i) => (
+                                          <tr
+                                            key={i}
+                                            className="border-t border-surface-raised/50"
+                                          >
+                                            <td className="py-1.5 pr-4 text-white/70">
+                                              {months[m.month - 1]}
+                                            </td>
+                                            <td className="py-1.5 pr-4 text-white/70">
+                                              {m.year}
+                                            </td>
+                                            <td className="py-1.5 pr-4 text-white/70">
+                                              {fmtRM(m.amount)}
+                                            </td>
+                                            <td className="py-1.5 pr-4">
+                                              <Badge
+                                                variant={
+                                                  m.paid ? "green" : "red"
+                                                }
+                                              >
+                                                {m.paid
+                                                  ? t("common.paid")
+                                                  : t("common.unpaid")}
+                                              </Badge>
+                                            </td>
+                                            <td className="py-1.5 text-white/50">
+                                              {m.paid && m.paid_at
+                                                ? fmtDate(m.paid_at)
+                                                : "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-white/40 italic">
+                                    {t("reports.noPaymentRecords")}
+                                  </p>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
-      )}
-
-      {/* Confirm export-all modal */}
-      {showConfirmExport && (
-        <Modal
-          title={t("reports.exportAll.title")}
-          onClose={() => setShowConfirmExport(false)}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => setShowConfirmExport(false)}
-              >
-                {t("reports.exportAll.cancel")}
-              </Button>
-              <Button onClick={doExport}>
-                <Download className="w-4 h-4" />
-                {t("reports.exportAll.confirm")}
-              </Button>
-            </>
-          }
-        >
-          <p className="text-white/70 text-sm">
-            {t("reports.exportAll.message")}
-          </p>
-        </Modal>
       )}
     </div>
   );

@@ -166,6 +166,8 @@
     "viewButton": "View",
     "confirmDelete": "Confirm",
     "noParents": "No parents registered yet.",
+    "searchPlaceholder": "Search by parent name...",
+    "noSearchResults": "No parents match your search.",
     "successRegistered": "Parent registered successfully",
     "successDeleted": "Parent deleted",
     "modal": {

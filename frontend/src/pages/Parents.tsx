@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Phone, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Phone, Trash2, Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
@@ -38,6 +38,7 @@ export default function Parents() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (user && user.role === "user") navigate("/dashboard", { replace: true });
@@ -113,6 +114,12 @@ export default function Parents() {
     }));
   }
 
+  const filteredParents = searchQuery.trim()
+    ? parents.filter((p) =>
+        p.parent_name.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : parents;
+
   const columns = [
     {
       header: t("parents.nameColumn"),
@@ -166,11 +173,29 @@ export default function Parents() {
         }
       />
 
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t("parents.searchPlaceholder")}
+          className="w-full bg-surface border border-surface-raised rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:ring-2 focus:ring-primary/60"
+        />
+      </div>
+
       <Table
         columns={columns}
-        data={parents}
-        emptyMessage={loading ? t("common.loading") : t("parents.noParents")}
+        data={filteredParents}
+        emptyMessage={
+          loading
+            ? t("common.loading")
+            : searchQuery.trim()
+              ? t("parents.noSearchResults")
+              : t("parents.noParents")
+        }
         onRowClick={(row) => navigate(`/parents/${row.id}`)}
+        maxHeight="480px"
       />
 
       {showModal && (

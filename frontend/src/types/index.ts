@@ -5,6 +5,7 @@ export interface ServiceType {
   monthly_fee: number;
   registration_fee: number;
   is_active: boolean;
+  monthly_fee_override?: number | null;
 }
 
 export interface User {
@@ -80,15 +81,31 @@ export interface FeePayment {
   session_id: number;
   child_id: number;
   child_name: string;
+  service_type_id: number;
   month: number;
   year: number;
   amount: number;
 }
 
+export interface PendingService {
+  service_type_id: number;
+  name: string;
+  amount: number;
+  paid: boolean;
+}
+
 export interface PendingMonth {
   month: number;
   year: number;
-  amount: number;
+  services: PendingService[];
+}
+
+export interface PartialPaymentEntry {
+  child_id: number;
+  child_name: string;
+  parent_id: number;
+  parent_name: string;
+  partial_months: PendingMonth[];
 }
 
 export interface RegistrationPaymentRecord {

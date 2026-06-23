@@ -17,7 +17,7 @@ def _attach_services(cursor, children: list) -> list:
         return children
     child_ids = [c["id"] for c in children]
     cursor.execute(
-        """SELECT cs.child_id, st.id, st.name, st.monthly_fee, st.registration_fee, st.is_active
+        """SELECT cs.child_id, cs.monthly_fee_override, st.id, st.name, st.monthly_fee, st.registration_fee, st.is_active
            FROM child_services cs
            JOIN service_types st ON cs.service_type_id = st.id
            WHERE cs.child_id = ANY(%s)
@@ -27,11 +27,13 @@ def _attach_services(cursor, children: list) -> list:
     services_map: dict = {}
     for row in cursor.fetchall():
         cid = row["child_id"]
+        effective_fee = float(row["monthly_fee_override"]) if row["monthly_fee_override"] is not None else float(row["monthly_fee"])
         services_map.setdefault(cid, []).append({
             "id": row["id"], "name": row["name"],
-            "monthly_fee": float(row["monthly_fee"]),
+            "monthly_fee": effective_fee,
             "registration_fee": float(row["registration_fee"]),
             "is_active": row["is_active"],
+            "monthly_fee_override": float(row["monthly_fee_override"]) if row["monthly_fee_override"] is not None else None,
         })
     result = []
     for child in children:
@@ -153,6 +155,7 @@ class ChildUpdate(BaseModel):
     name: Optional[str] = None
     dob: Optional[datetime.date] = None
     service_type_ids: Optional[list[int]] = None
+    service_fee_overrides: Optional[dict[int, Optional[float]]] = None
 
 @router.get("/parent/{parent_id}")
 def get_children_by_parent(parent_id: int, include_inactive: bool = False, conn=Depends(get_db), current_user=Depends(require_admin)):
@@ -243,9 +246,16 @@ def update_child(child_id: int, data: ChildUpdate, conn=Depends(get_db), current
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service type {sid} not found or inactive.")
             cursor.execute("DELETE FROM child_services WHERE child_id = %s", (child_id,))
             for sid in data.service_type_ids:
+                override = (data.service_fee_overrides or {}).get(sid)
                 cursor.execute(
-                    "INSERT INTO child_services (child_id, service_type_id) VALUES (%s, %s)",
-                    (child_id, sid)
+                    "INSERT INTO child_services (child_id, service_type_id, monthly_fee_override) VALUES (%s, %s, %s)",
+                    (child_id, sid, override)
+                )
+        elif data.service_fee_overrides is not None:
+            for sid, override in data.service_fee_overrides.items():
+                cursor.execute(
+                    "UPDATE child_services SET monthly_fee_override = %s WHERE child_id = %s AND service_type_id = %s",
+                    (override, child_id, sid)
                 )
 
         cursor.execute(

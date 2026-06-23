@@ -229,6 +229,13 @@
       "serviceRequired": "Select at least one service",
       "success": "Child added"
     },
+    "editChild": {
+      "title": "Edit Child",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "success": "Child updated",
+      "customFeeHint": "Default is RM {{default}}/month"
+    },
     "recordPayment": {
       "title": "Record Payment",
       "noActiveChildren": "No active children to record payment for.",
@@ -270,6 +277,8 @@
     "totalOwed": "Total Owed",
     "noUnpaidRegistrations": "All children have paid their registration fee.",
     "regFeeColumn": "Reg. Fee",
+    "partialPaymentsPending": "Partial Payments Pending",
+    "unpaidServicesColumn": "Unpaid Services",
     "loading": "Loading..."
   },
   "reports": {

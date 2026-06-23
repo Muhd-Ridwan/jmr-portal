@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowRight, UserX } from "lucide-react";
+import { AlertTriangle, ArrowRight, UserX, SplitSquareVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
-import { getOverduePayments, getUnpaidRegistrations } from "../api/payments";
-import type { OverdueEntry, UnregisteredChild } from "../types";
+import { getOverduePayments, getUnpaidRegistrations, getPartialPayments } from "../api/payments";
+import type { OverdueEntry, UnregisteredChild, PartialPaymentEntry } from "../types";
 import PageHeader from "../components/PageHeader";
 
 export default function Payments() {
@@ -14,6 +14,7 @@ export default function Payments() {
   const { t } = useTranslation();
   const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
   const [unregistered, setUnregistered] = useState<UnregisteredChild[]>([]);
+  const [partial, setPartial] = useState<PartialPaymentEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const monthsShort = t("common.monthsShort", {
@@ -25,10 +26,11 @@ export default function Payments() {
   }, [user, navigate]);
 
   useEffect(() => {
-    Promise.all([getOverduePayments(), getUnpaidRegistrations()])
-      .then(([o, u]) => {
+    Promise.all([getOverduePayments(), getUnpaidRegistrations(), getPartialPayments()])
+      .then(([o, u, p]) => {
         setOverdue(o);
         setUnregistered(u);
+        setPartial(p);
       })
       .catch((err) => toast.error((err as Error).message))
       .finally(() => setLoading(false));
@@ -170,6 +172,99 @@ export default function Payments() {
           )}
         </div>
       </section>
+
+      {/* Partial payments pending */}
+      {(loading || partial.length > 0) && (
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest">
+            {t("payments.partialPaymentsPending")}
+          </h2>
+
+          <div className="bg-surface border border-surface-raised rounded-xl overflow-hidden">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-surface-raised">
+              <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
+                {t("payments.childColumn")}
+              </span>
+              <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
+                {t("payments.parentColumn")}
+              </span>
+              <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">
+                {t("payments.unpaidServicesColumn")}
+              </span>
+              <span />
+            </div>
+
+            {loading ? (
+              <p className="px-6 py-8 text-sm text-white/30 text-center">
+                {t("payments.loading")}
+              </p>
+            ) : (
+              <div className="divide-y divide-surface-raised">
+                {partial.map((entry) => {
+                  const unpaidSummary = entry.partial_months
+                    .flatMap((m) =>
+                      m.services
+                        .filter((s) => !s.paid)
+                        .map((s) => ({
+                          monthLabel: `${monthsShort[m.month - 1]} ${m.year}`,
+                          serviceName: s.name
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase()),
+                          amount: s.amount,
+                        })),
+                    )
+                    .slice(0, 3);
+                  return (
+                    <button
+                      key={entry.child_id}
+                      type="button"
+                      onClick={() => navigate(`/parents/${entry.parent_id}`)}
+                      className="w-full text-left px-6 py-4 hover:bg-surface-raised/50 transition-colors group"
+                    >
+                      <div className="sm:hidden space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-white">
+                            {entry.child_name}
+                          </p>
+                          <span className="text-xs font-semibold text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded-full">
+                            {entry.partial_months.length}×
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/40">{entry.parent_name}</p>
+                      </div>
+                      <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_auto] gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                          <SplitSquareVertical className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                          <p className="text-sm font-medium text-white">
+                            {entry.child_name}
+                          </p>
+                        </div>
+                        <p className="text-sm text-white/60">{entry.parent_name}</p>
+                        <div className="space-y-0.5">
+                          {unpaidSummary.map((item, i) => (
+                            <p key={i} className="text-xs text-white/50">
+                              {item.monthLabel} —{" "}
+                              <span className="text-orange-400/80">
+                                {item.serviceName} RM {item.amount.toFixed(2)}
+                              </span>
+                            </p>
+                          ))}
+                          {entry.partial_months.flatMap((m) => m.services.filter((s) => !s.paid)).length > 3 && (
+                            <p className="text-xs text-white/30">
+                              +{entry.partial_months.flatMap((m) => m.services.filter((s) => !s.paid)).length - 3} more
+                            </p>
+                          )}
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Unpaid registration fees */}
       <section className="space-y-4">

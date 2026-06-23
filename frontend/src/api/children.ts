@@ -57,6 +57,7 @@ export const updateChild = (
     name?: string;
     dob?: string;
     service_type_ids?: number[];
+    service_fee_overrides?: Record<number, number | null>;
   },
 ) => apiFetch(`/children/${id}`, { method: "PUT", body: JSON.stringify(data) });
 

@@ -30,6 +30,7 @@ import { getParent, updateParent } from "../api/parents";
 import {
   getServiceTypes,
   createChild,
+  updateChild,
   toggleChildStatus,
 } from "../api/children";
 import {
@@ -337,7 +338,175 @@ function AddChildModal({
   );
 }
 
+// ── Edit Child Modal ──────────────────────────────────────────────────────────
+
+function EditChildModal({
+  child,
+  serviceTypes,
+  onClose,
+  onSaved,
+}: {
+  child: Child;
+  serviceTypes: ServiceType[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    name: child.name,
+    dob: child.dob ?? "",
+    service_type_ids: child.service_types.map((s) => s.id),
+  });
+  const [feeOverrides, setFeeOverrides] = useState<Record<number, string>>(
+    Object.fromEntries(
+      child.service_types
+        .filter((s) => s.monthly_fee_override != null)
+        .map((s) => [s.id, String(s.monthly_fee_override)]),
+    ),
+  );
+  const [saving, setSaving] = useState(false);
+
+  function toggleService(id: number) {
+    setForm((f) => ({
+      ...f,
+      service_type_ids: f.service_type_ids.includes(id)
+        ? f.service_type_ids.filter((s) => s !== id)
+        : [...f.service_type_ids, id],
+    }));
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) {
+      toast.error(t("parentDetail.addChildModal.nameRequired"));
+      return;
+    }
+    if (form.service_type_ids.length === 0) {
+      toast.error(t("parentDetail.addChildModal.serviceRequired"));
+      return;
+    }
+    const service_fee_overrides: Record<number, number | null> = {};
+    form.service_type_ids.forEach((sid) => {
+      const raw = feeOverrides[sid]?.trim();
+      service_fee_overrides[sid] = raw ? parseFloat(raw) : null;
+    });
+    setSaving(true);
+    try {
+      await updateChild(child.id, {
+        name: form.name.trim(),
+        dob: form.dob || undefined,
+        service_type_ids: form.service_type_ids,
+        service_fee_overrides,
+      });
+      toast.success(t("parentDetail.editChild.success"));
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={t("parentDetail.editChild.title")}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t("parentDetail.editChild.cancel")}
+          </Button>
+          <Button loading={saving} onClick={handleSave}>
+            {t("parentDetail.editChild.save")}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <FormField label={t("parentDetail.addChildModal.name")} required>
+          <Input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          />
+        </FormField>
+        <FormField label={t("parentDetail.addChildModal.dob")}>
+          <Input
+            type="date"
+            value={form.dob}
+            onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
+          />
+        </FormField>
+        <FormField label={t("parentDetail.addChildModal.services")} required>
+          <div className="space-y-2">
+            {serviceTypes.map((st) => {
+              const checked = form.service_type_ids.includes(st.id);
+              return (
+                <div
+                  key={st.id}
+                  className={`rounded-lg border transition-colors ${
+                    checked
+                      ? "border-primary/60 bg-primary/10"
+                      : "border-surface-raised bg-surface-raised hover:bg-[#4a7a57]"
+                  }`}
+                >
+                  <label className="flex items-start gap-3 px-4 py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleService(st.id)}
+                      className="w-4 h-4 accent-primary shrink-0 mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">
+                        {st.name
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </p>
+                      <p className="text-xs text-white/40">
+                        RM {st.monthly_fee}/month · RM {st.registration_fee}{" "}
+                        registration
+                      </p>
+                    </div>
+                  </label>
+                  {checked && (
+                    <div className="px-4 pb-3 pl-11 space-y-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder={`RM ${st.monthly_fee}`}
+                        value={feeOverrides[st.id] ?? ""}
+                        onChange={(e) =>
+                          setFeeOverrides((prev) => ({
+                            ...prev,
+                            [st.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full text-xs"
+                      />
+                      {feeOverrides[st.id] && (
+                        <p className="text-xs text-white/30">
+                          {t("parentDetail.editChild.customFeeHint", {
+                            default: st.monthly_fee,
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </FormField>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Record Payment Modal ──────────────────────────────────────────────────────
+
+type MonthEntry = { month: number; year: number; selectedServiceIds: number[] };
 
 function RecordPaymentModal({
   parentId,
@@ -358,9 +527,9 @@ function RecordPaymentModal({
   }) as string[];
   const now = new Date();
   const YEARS = Array.from({ length: 4 }, (_, i) => now.getFullYear() - 1 + i);
-  const [childMonths, setChildMonths] = useState<
-    Record<number, { month: number; year: number }[]>
-  >({});
+  const [childMonths, setChildMonths] = useState<Record<number, MonthEntry[]>>(
+    {},
+  );
   const [method, setMethod] = useState<"cash" | "bank_transfer" | "online">(
     "cash",
   );
@@ -370,6 +539,54 @@ function RecordPaymentModal({
     string | undefined
   >(undefined);
   const [saving, setSaving] = useState(false);
+
+  function getDefaultServiceIds(
+    child: Child,
+    month: number,
+    year: number,
+  ): number[] {
+    const pendingMonths = pendingMap[child.id]?.pending_months ?? [];
+    const monthEntry = pendingMonths.find(
+      (m) => m.month === month && m.year === year,
+    );
+    if (monthEntry) {
+      return monthEntry.services.filter((s) => !s.paid).map((s) => s.service_type_id);
+    }
+    const start = new Date(child.created_at);
+    const startFirst = new Date(start.getFullYear(), start.getMonth(), 1);
+    const entryDate = new Date(year, month - 1, 1);
+    const todayFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (entryDate >= startFirst && entryDate <= todayFirst) {
+      return [];
+    }
+    return child.service_types.map((s) => s.id);
+  }
+
+  function isServicePaid(
+    child: Child,
+    serviceTypeId: number,
+    month: number,
+    year: number,
+  ): boolean {
+    const pendingMonths = pendingMap[child.id]?.pending_months ?? [];
+    const monthEntry = pendingMonths.find(
+      (m) => m.month === month && m.year === year,
+    );
+    if (monthEntry) {
+      return monthEntry.services.find((s) => s.service_type_id === serviceTypeId)?.paid ?? false;
+    }
+    const start = new Date(child.created_at);
+    const startFirst = new Date(start.getFullYear(), start.getMonth(), 1);
+    const entryDate = new Date(year, month - 1, 1);
+    const todayFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+    return entryDate >= startFirst && entryDate <= todayFirst;
+  }
+
+  function isMonthFullyPaid(child: Child, month: number, year: number): boolean {
+    return child.service_types.every((s) =>
+      isServicePaid(child, s.id, month, year),
+    );
+  }
 
   function getContentType(filename: string): string {
     const ext = filename.split(".").pop()?.toLowerCase();
@@ -403,40 +620,44 @@ function RecordPaymentModal({
         return next;
       }
       const pendingMonths = pendingMap[child.id]?.pending_months ?? [];
-      const defaultMonths =
+      const defaultMonths: MonthEntry[] =
         pendingMonths.length > 0
-          ? pendingMonths.map((m) => ({ month: m.month, year: m.year }))
-          : [{ month: now.getMonth() + 1, year: now.getFullYear() }];
+          ? pendingMonths.map((m) => ({
+              month: m.month,
+              year: m.year,
+              selectedServiceIds: m.services
+                .filter((s) => !s.paid)
+                .map((s) => s.service_type_id),
+            }))
+          : [
+              {
+                month: now.getMonth() + 1,
+                year: now.getFullYear(),
+                selectedServiceIds: getDefaultServiceIds(
+                  child,
+                  now.getMonth() + 1,
+                  now.getFullYear(),
+                ),
+              },
+            ];
       return { ...prev, [child.id]: defaultMonths };
     });
   }
 
-  function isAlreadyPaid(
-    childId: number,
-    month: number,
-    year: number,
-  ): boolean {
-    const pending = pendingMap[childId]?.pending_months ?? [];
-    const child = activeChildren.find((c) => c.id === childId);
-    if (!child) return false;
-    const start = new Date(child.created_at);
-    const today = new Date();
-    const afterStart =
-      year > start.getFullYear() ||
-      (year === start.getFullYear() && month >= start.getMonth() + 1);
-    const beforeOrNow =
-      year < today.getFullYear() ||
-      (year === today.getFullYear() && month <= today.getMonth() + 1);
-    if (!afterStart || !beforeOrNow) return false;
-    return !pending.some((m) => m.month === month && m.year === year);
-  }
-
   function addMonth(childId: number) {
+    const child = activeChildren.find((c) => c.id === childId);
+    if (!child) return;
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
     setChildMonths((prev) => ({
       ...prev,
       [childId]: [
         ...(prev[childId] ?? []),
-        { month: now.getMonth() + 1, year: now.getFullYear() },
+        {
+          month,
+          year,
+          selectedServiceIds: getDefaultServiceIds(child, month, year),
+        },
       ],
     }));
   }
@@ -459,21 +680,48 @@ function RecordPaymentModal({
     field: "month" | "year",
     val: number,
   ) {
+    const child = activeChildren.find((c) => c.id === childId);
+    if (!child) return;
     setChildMonths((prev) => {
       const updated = [...(prev[childId] ?? [])];
-      updated[idx] = { ...updated[idx], [field]: val };
+      const entry = { ...updated[idx], [field]: val };
+      entry.selectedServiceIds = getDefaultServiceIds(
+        child,
+        entry.month,
+        entry.year,
+      );
+      updated[idx] = entry;
+      return { ...prev, [childId]: updated };
+    });
+  }
+
+  function toggleService(childId: number, monthIdx: number, serviceTypeId: number) {
+    setChildMonths((prev) => {
+      const updated = [...(prev[childId] ?? [])];
+      const entry = { ...updated[monthIdx] };
+      const ids = entry.selectedServiceIds;
+      entry.selectedServiceIds = ids.includes(serviceTypeId)
+        ? ids.filter((id) => id !== serviceTypeId)
+        : [...ids, serviceTypeId];
+      updated[monthIdx] = entry;
       return { ...prev, [childId]: updated };
     });
   }
 
   const fee_payments = Object.entries(childMonths).flatMap(([childId, ms]) => {
     const child = activeChildren.find((c) => c.id === +childId);
-    return ms.map((m) => ({
-      child_id: +childId,
-      month: m.month,
-      year: m.year,
-      amount: child?.monthly_fee ?? 0,
-    }));
+    return ms.flatMap((m) =>
+      m.selectedServiceIds.map((serviceTypeId) => {
+        const svc = child?.service_types.find((s) => s.id === serviceTypeId);
+        return {
+          child_id: +childId,
+          service_type_id: serviceTypeId,
+          month: m.month,
+          year: m.year,
+          amount: svc?.monthly_fee ?? 0,
+        };
+      }),
+    );
   });
 
   const total = fee_payments.reduce((sum, p) => sum + p.amount, 0);
@@ -565,11 +813,11 @@ function RecordPaymentModal({
               {selected && (
                 <div className="px-4 py-3 space-y-2 bg-surface">
                   {cms.map((m, idx) => {
-                    const alreadyPaid = isAlreadyPaid(
-                      child.id,
-                      m.month,
-                      m.year,
-                    );
+                    const fullyPaid = isMonthFullyPaid(child, m.month, m.year);
+                    const monthTotal = m.selectedServiceIds.reduce((sum, sid) => {
+                      const svc = child.service_types.find((s) => s.id === sid);
+                      return sum + (svc?.monthly_fee ?? 0);
+                    }, 0);
                     return (
                       <div
                         key={idx}
@@ -579,12 +827,7 @@ function RecordPaymentModal({
                           <select
                             value={m.year}
                             onChange={(e) =>
-                              updateMonth(
-                                child.id,
-                                idx,
-                                "year",
-                                +e.target.value,
-                              )
+                              updateMonth(child.id, idx, "year", +e.target.value)
                             }
                             className="px-2 py-1.5 text-xs rounded bg-surface-raised border border-surface-raised text-white focus:outline-none focus:ring-1 focus:ring-primary/60"
                           >
@@ -594,14 +837,14 @@ function RecordPaymentModal({
                               </option>
                             ))}
                           </select>
-                          {alreadyPaid ? (
+                          {fullyPaid ? (
                             <span className="flex items-center gap-0.5 text-xs text-amber-400 flex-1">
                               <AlertTriangle className="w-3 h-3 shrink-0" />
                               {t("common.paid")}
                             </span>
                           ) : (
                             <span className="text-xs text-white/40 flex-1">
-                              RM {child.monthly_fee}
+                              RM {monthTotal}
                             </span>
                           )}
                           <button
@@ -629,6 +872,44 @@ function RecordPaymentModal({
                             </button>
                           ))}
                         </div>
+                        {child.service_types.length > 1 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {child.service_types.map((svc) => {
+                              const paid = isServicePaid(child, svc.id, m.month, m.year);
+                              const selected = m.selectedServiceIds.includes(svc.id);
+                              return (
+                                <label
+                                  key={svc.id}
+                                  className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors ${
+                                    paid
+                                      ? "border-surface-raised text-white/25 cursor-not-allowed"
+                                      : selected
+                                        ? "border-primary/60 bg-primary/10 text-white cursor-pointer"
+                                        : "border-surface-raised text-white/40 hover:text-white cursor-pointer"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    disabled={paid}
+                                    onChange={() =>
+                                      !paid && toggleService(child.id, idx, svc.id)
+                                    }
+                                    className="w-3 h-3 accent-primary"
+                                  />
+                                  <span>
+                                    {svc.name
+                                      .replace(/_/g, " ")
+                                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                                  </span>
+                                  <span className="text-white/30">
+                                    RM {svc.monthly_fee}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -809,6 +1090,7 @@ export default function ParentDetail() {
 
   const [showEdit, setShowEdit] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
+  const [showEditChild, setShowEditChild] = useState<Child | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [includingInactive, setIncludingInactive] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<{
@@ -1004,11 +1286,11 @@ export default function ParentDetail() {
               return (
                 <div
                   key={child.id}
-                  className={`px-6 py-4 flex items-center justify-between gap-4 ${
+                  className={`px-6 py-4 flex items-start justify-between gap-4 ${
                     !child.is_active ? "opacity-50" : ""
                   }`}
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white">
                       {child.name}
                     </p>
@@ -1046,12 +1328,13 @@ export default function ParentDetail() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="mt-1.5 flex items-center gap-1 text-xs text-emerald-400/70">
-                        <CheckCircle2 className="w-3 h-3 shrink-0" />
-                        {t("parentDetail.registrationPaid")}
+                      <div className="mt-1.5 text-xs">
+                        <div className="flex items-center gap-1 text-emerald-400/70">
+                          <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          {t("parentDetail.registrationPaid")}
+                        </div>
                         {pending?.registration_payment && (
-                          <span className="text-white/30">
-                            ·{" "}
+                          <p className="text-white/30 ml-4 mt-0.5">
                             {new Date(
                               pending.registration_payment.paid_at,
                             ).toLocaleDateString("en-MY", {
@@ -1063,12 +1346,20 @@ export default function ParentDetail() {
                             {Number(
                               pending.registration_payment.amount,
                             ).toFixed(2)}
-                          </span>
+                          </p>
                         )}
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-start gap-2 shrink-0 pt-0.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowEditChild(child)}
+                      title={t("parentDetail.editChild.title")}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -1313,6 +1604,14 @@ export default function ParentDetail() {
           parentId={parentId}
           serviceTypes={serviceTypes}
           onClose={() => setShowAddChild(false)}
+          onSaved={load}
+        />
+      )}
+      {showEditChild && (
+        <EditChildModal
+          child={showEditChild}
+          serviceTypes={serviceTypes}
+          onClose={() => setShowEditChild(null)}
           onSaved={load}
         />
       )}

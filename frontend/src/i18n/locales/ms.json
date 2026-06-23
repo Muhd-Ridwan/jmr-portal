@@ -229,6 +229,13 @@
       "serviceRequired": "Pilih sekurang-kurangnya satu perkhidmatan",
       "success": "Kanak-kanak ditambah"
     },
+    "editChild": {
+      "title": "Edit Kanak-Kanak",
+      "cancel": "Batal",
+      "save": "Simpan Perubahan",
+      "success": "Kanak-kanak dikemas kini",
+      "customFeeHint": "Lalai ialah RM {{default}}/bulan"
+    },
     "recordPayment": {
       "title": "Rekod Pembayaran",
       "noActiveChildren": "Tiada kanak-kanak aktif untuk merekodkan pembayaran.",
@@ -270,6 +277,8 @@
     "totalOwed": "Jumlah Terhutang",
     "noUnpaidRegistrations": "Semua kanak-kanak telah membayar yuran pendaftaran.",
     "regFeeColumn": "Yuran Daftar",
+    "partialPaymentsPending": "Pembayaran Separa Menunggu",
+    "unpaidServicesColumn": "Perkhidmatan Belum Dibayar",
     "loading": "Memuatkan..."
   },
   "reports": {

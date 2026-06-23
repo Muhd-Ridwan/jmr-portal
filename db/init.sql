@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS child_services (
     id SERIAL PRIMARY KEY,
     child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
     service_type_id INTEGER NOT NULL REFERENCES service_types(id),
+    monthly_fee_override NUMERIC(10, 2) NULL,
     UNIQUE (child_id, service_type_id)
 );
 
@@ -75,11 +76,12 @@ CREATE TABLE IF NOT EXISTS fee_payments (
     id SERIAL PRIMARY KEY,
     session_id INTEGER NOT NULL REFERENCES payment_sessions(id),
     child_id INTEGER NOT NULL REFERENCES children(id),
+    service_type_id INTEGER NOT NULL REFERENCES service_types(id),
     month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
     year INTEGER NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (child_id, month, year)
+    UNIQUE (child_id, service_type_id, month, year)
 );
 
 CREATE TABLE IF NOT EXISTS registration_payments (
@@ -91,6 +93,17 @@ CREATE TABLE IF NOT EXISTS registration_payments (
     created_by INTEGER NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (child_id)
+);
+
+CREATE TABLE IF NOT EXISTS donation_transactions (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(10) NOT NULL CHECK (type IN ('credit', 'debit')),
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    description TEXT,
+    receipt_key TEXT,
+    transaction_date DATE NOT NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

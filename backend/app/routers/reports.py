@@ -132,29 +132,32 @@ def get_payment_summary(
                         else:
                             current = current.replace(month=current.month + 1)
 
-                # Fetch paid fee_payments joined with payment_sessions for paid_at
+                # Aggregate per (month, year) — multiple service rows may exist per month
                 if month is not None and year is not None:
                     cursor.execute(
-                        """SELECT fp.month, fp.year, fp.amount, ps.paid_at
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
                            FROM fee_payments fp
                            JOIN payment_sessions ps ON fp.session_id = ps.id
-                           WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s""",
+                           WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"], month, year),
                     )
                 elif year is not None:
                     cursor.execute(
-                        """SELECT fp.month, fp.year, fp.amount, ps.paid_at
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
                            FROM fee_payments fp
                            JOIN payment_sessions ps ON fp.session_id = ps.id
-                           WHERE fp.child_id = %s AND fp.year = %s""",
+                           WHERE fp.child_id = %s AND fp.year = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"], year),
                     )
                 else:
                     cursor.execute(
-                        """SELECT fp.month, fp.year, fp.amount, ps.paid_at
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
                            FROM fee_payments fp
                            JOIN payment_sessions ps ON fp.session_id = ps.id
-                           WHERE fp.child_id = %s""",
+                           WHERE fp.child_id = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"],),
                     )
                 paid_map = {(row["month"], row["year"]): row for row in cursor.fetchall()}
@@ -296,26 +299,35 @@ def get_my_payment_summary(
 
             if month is not None and year is not None:
                 cursor.execute(
-                    """SELECT fp.month, fp.year, fp.amount, fp.session_id, ps.paid_at, ps.receipt_key
+                    """SELECT fp.month, fp.year, SUM(fp.amount) as amount,
+                              MIN(fp.session_id) as session_id, MIN(ps.paid_at) as paid_at,
+                              MIN(ps.receipt_key) as receipt_key
                        FROM fee_payments fp
                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                       WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s""",
+                       WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s
+                       GROUP BY fp.month, fp.year""",
                     (child["id"], month, year),
                 )
             elif year is not None:
                 cursor.execute(
-                    """SELECT fp.month, fp.year, fp.amount, fp.session_id, ps.paid_at, ps.receipt_key
+                    """SELECT fp.month, fp.year, SUM(fp.amount) as amount,
+                              MIN(fp.session_id) as session_id, MIN(ps.paid_at) as paid_at,
+                              MIN(ps.receipt_key) as receipt_key
                        FROM fee_payments fp
                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                       WHERE fp.child_id = %s AND fp.year = %s""",
+                       WHERE fp.child_id = %s AND fp.year = %s
+                       GROUP BY fp.month, fp.year""",
                     (child["id"], year),
                 )
             else:
                 cursor.execute(
-                    """SELECT fp.month, fp.year, fp.amount, fp.session_id, ps.paid_at, ps.receipt_key
+                    """SELECT fp.month, fp.year, SUM(fp.amount) as amount,
+                              MIN(fp.session_id) as session_id, MIN(ps.paid_at) as paid_at,
+                              MIN(ps.receipt_key) as receipt_key
                        FROM fee_payments fp
                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                       WHERE fp.child_id = %s""",
+                       WHERE fp.child_id = %s
+                       GROUP BY fp.month, fp.year""",
                     (child["id"],),
                 )
             paid_map = {(row["month"], row["year"]): row for row in cursor.fetchall()}
@@ -453,29 +465,29 @@ def export_report_pdf(
                 
                 if month is not None and year is not None:
                     cursor.execute(
-                        """
-                        SELECT fp.month, fp.year, fp.amount, ps.paid_at FROM fee_payments fp
-                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                        WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s
-                        """,
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
+                           FROM fee_payments fp
+                           JOIN payment_sessions ps ON fp.session_id = ps.id
+                           WHERE fp.child_id = %s AND fp.month = %s AND fp.year = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"], month, year),
                     )
                 elif year is not None:
                     cursor.execute(
-                        """
-                        SELECT fp.month, fp.year, fp.amount, ps.paid_at FROM fee_payments fp
-                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                        WHERE fp.child_id = %s AND fp.year = %s
-                        """,
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
+                           FROM fee_payments fp
+                           JOIN payment_sessions ps ON fp.session_id = ps.id
+                           WHERE fp.child_id = %s AND fp.year = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"], year),
                     )
                 else:
                     cursor.execute(
-                        """
-                        SELECT fp.month, fp.year, fp.amount, ps.paid_at FROM fee_payments fp
-                        JOIN payment_sessions ps ON fp.session_id = ps.id
-                        WHERE fp.child_id = %s
-                        """,
+                        """SELECT fp.month, fp.year, SUM(fp.amount) as amount, MIN(ps.paid_at) as paid_at
+                           FROM fee_payments fp
+                           JOIN payment_sessions ps ON fp.session_id = ps.id
+                           WHERE fp.child_id = %s
+                           GROUP BY fp.month, fp.year""",
                         (child["id"],),
                     )
                 paid_map = {(r["month"], r["year"]): r for r in cursor.fetchall()}

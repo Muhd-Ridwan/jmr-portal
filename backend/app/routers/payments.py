@@ -17,6 +17,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 
 class FeePaymentItem(BaseModel):
     child_id: int
+    service_type_id: int
     month: int
     year: int
     amount: float
@@ -92,15 +93,18 @@ def create_payment_session(data: PaymentSessionCreate, conn=Depends(get_db), cur
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Child {item.child_id} does not belong to this parent")
 
             cursor.execute(
-                "SELECT id FROM fee_payments WHERE child_id = %s AND month = %s AND year = %s",
-                (item.child_id, item.month, item.year)
+                "SELECT id FROM fee_payments WHERE child_id = %s AND service_type_id = %s AND month = %s AND year = %s",
+                (item.child_id, item.service_type_id, item.month, item.year)
             )
             if cursor.fetchone():
+                cursor.execute("SELECT name FROM service_types WHERE id = %s", (item.service_type_id,))
+                svc_row = cursor.fetchone()
+                svc_name = svc_row["name"].replace("_", " ").title() if svc_row else f"Service {item.service_type_id}"
                 month_names = ["January", "February", "March", "April", "May", "June",
                                "July", "August", "September", "October", "November", "December"]
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"{month_names[item.month - 1]} {item.year} payment for {child_row['name']} has already been recorded"
+                    detail=f"{child_row['name']} — {svc_name}: {month_names[item.month - 1]} {item.year} has already been recorded"
                 )
 
         cursor.execute(
@@ -112,9 +116,9 @@ def create_payment_session(data: PaymentSessionCreate, conn=Depends(get_db), cur
 
         for item in data.fee_payments:
             cursor.execute(
-                """INSERT INTO fee_payments (session_id, child_id, month, year, amount)
-                   VALUES (%s, %s, %s, %s, %s)""",
-                (session_id, item.child_id, item.month, item.year, item.amount)
+                """INSERT INTO fee_payments (session_id, child_id, service_type_id, month, year, amount)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (session_id, item.child_id, item.service_type_id, item.month, item.year, item.amount)
             )
 
         conn.commit()
@@ -161,22 +165,27 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
     try:
         cursor = conn.cursor()
 
-        cursor.execute(
-            """SELECT c.id, c.name, c.created_at,
-                      COALESCE(SUM(st.monthly_fee), 0) as monthly_fee
-               FROM children c
-               LEFT JOIN child_services cs ON c.id = cs.child_id
-               LEFT JOIN service_types st ON cs.service_type_id = st.id
-               WHERE c.id = %s
-               GROUP BY c.id, c.name, c.created_at""",
-            (child_id,)
-        )
+        cursor.execute("SELECT id, name, created_at FROM children WHERE id = %s", (child_id,))
         child = cursor.fetchone()
         if not child:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child not found")
 
-        cursor.execute("SELECT month, year FROM fee_payments WHERE child_id = %s", (child_id,))
-        paid = {(row["month"], row["year"]) for row in cursor.fetchall()}
+        cursor.execute(
+            """SELECT st.id as service_type_id, st.name,
+                      COALESCE(cs.monthly_fee_override, st.monthly_fee) as effective_fee
+               FROM child_services cs
+               JOIN service_types st ON cs.service_type_id = st.id
+               WHERE cs.child_id = %s
+               ORDER BY st.id""",
+            (child_id,)
+        )
+        services = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT service_type_id, month, year FROM fee_payments WHERE child_id = %s",
+            (child_id,)
+        )
+        paid_entries = {(row["service_type_id"], row["month"], row["year"]) for row in cursor.fetchall()}
 
         start = child["created_at"].date().replace(day=1)
         today = datetime.date.today().replace(day=1)
@@ -184,8 +193,21 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
         pending = []
         current = start
         while current <= today:
-            if (current.month, current.year) not in paid:
-                pending.append({"month": current.month, "year": current.year, "amount": child["monthly_fee"]})
+            month_services = []
+            for svc in services:
+                is_paid = (svc["service_type_id"], current.month, current.year) in paid_entries
+                month_services.append({
+                    "service_type_id": svc["service_type_id"],
+                    "name": svc["name"],
+                    "amount": float(svc["effective_fee"]),
+                    "paid": is_paid,
+                })
+            if any(not s["paid"] for s in month_services):
+                pending.append({
+                    "month": current.month,
+                    "year": current.year,
+                    "services": month_services,
+                })
             if current.month == 12:
                 current = current.replace(year=current.year + 1, month=1)
             else:
@@ -217,7 +239,7 @@ def get_pending_months(child_id: int, conn=Depends(get_db), current_user=Depends
             "child_name": child["name"],
             "registration_paid": registration_paid,
             "registration_payment": registration_payment,
-            "pending_months": pending
+            "pending_months": pending,
         }
     except HTTPException:
         raise
@@ -274,6 +296,83 @@ def get_payment_history(parent_id: int, conn=Depends(get_db), current_user=Depen
     except Exception:
         logger.exception("Failed to retrieve payment history for parent %s", parent_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve payment history. Please try again.")
+
+
+@router.get("/partial")
+def get_partial_payments(conn=Depends(get_db), current_user=Depends(require_admin)):
+    try:
+        cursor = conn.cursor()
+        today_first = datetime.date.today().replace(day=1)
+
+        cursor.execute(
+            """SELECT c.id as child_id, c.name as child_name, c.created_at,
+                      p.id as parent_id, p.parent_name
+               FROM children c
+               JOIN parents p ON c.parent_id = p.id
+               WHERE c.is_active = TRUE AND p.is_active = TRUE"""
+        )
+        children = cursor.fetchall()
+
+        partial = []
+        for child in children:
+            cursor.execute(
+                """SELECT st.id as service_type_id, st.name,
+                          COALESCE(cs.monthly_fee_override, st.monthly_fee) as effective_fee
+                   FROM child_services cs
+                   JOIN service_types st ON cs.service_type_id = st.id
+                   WHERE cs.child_id = %s""",
+                (child["child_id"],)
+            )
+            services = cursor.fetchall()
+            if not services:
+                continue
+
+            cursor.execute(
+                "SELECT service_type_id, month, year FROM fee_payments WHERE child_id = %s",
+                (child["child_id"],)
+            )
+            paid_entries = {(row["service_type_id"], row["month"], row["year"]) for row in cursor.fetchall()}
+
+            start = child["created_at"].date().replace(day=1)
+            current = start
+            partial_months = []
+
+            while current < today_first:
+                paid_flags = [(svc["service_type_id"], current.month, current.year) in paid_entries for svc in services]
+                if any(paid_flags) and not all(paid_flags):
+                    partial_months.append({
+                        "month": current.month,
+                        "year": current.year,
+                        "services": [
+                            {
+                                "service_type_id": svc["service_type_id"],
+                                "name": svc["name"],
+                                "amount": float(svc["effective_fee"]),
+                                "paid": (svc["service_type_id"], current.month, current.year) in paid_entries,
+                            }
+                            for svc in services
+                        ],
+                    })
+                if current.month == 12:
+                    current = current.replace(year=current.year + 1, month=1)
+                else:
+                    current = current.replace(month=current.month + 1)
+
+            if partial_months:
+                partial.append({
+                    "child_id": child["child_id"],
+                    "child_name": child["child_name"],
+                    "parent_id": child["parent_id"],
+                    "parent_name": child["parent_name"],
+                    "partial_months": partial_months,
+                })
+
+        return partial
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to retrieve partial payments")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve partial payments. Please try again.")
 
 
 @router.get("/registration/unpaid")

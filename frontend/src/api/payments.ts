@@ -4,6 +4,7 @@ import type {
   OverdueEntry,
   PaymentHistory,
   UnregisteredChild,
+  PartialPaymentEntry,
 } from "../types";
 
 export const getReceiptUploadUrl = (filename: string, content_type: string) =>
@@ -21,6 +22,7 @@ export const createPaymentSession = (data: {
   receipt_key?: string;
   fee_payments: {
     child_id: number;
+    service_type_id: number;
     month: number;
     year: number;
     amount: number;
@@ -55,6 +57,9 @@ export const getMyOverduePayments = () =>
 
 export const getUnpaidRegistrations = () =>
   apiFetch("/payments/registration/unpaid") as Promise<UnregisteredChild[]>;
+
+export const getPartialPayments = () =>
+  apiFetch("/payments/partial") as Promise<PartialPaymentEntry[]>;
 
 export const getReceiptUrl = (sessionId: number, download = false) =>
   apiFetch(

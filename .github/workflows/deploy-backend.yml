@@ -70,7 +70,7 @@ jobs:
             set -e
 
             echo "--- Pulling latest code ---"
-            cd /root/jmr-portal
+            cd /home/rwpnt/jmr-portal
             git pull origin main
 
             export DATABASE_URL="$DATABASE_URL"
@@ -80,11 +80,11 @@ jobs:
             }
 
             echo "--- Running init.sql ---"
-            run_sql /root/jmr-portal/db/init.sql
+            run_sql /home/rwpnt/jmr-portal/db/init.sql
             echo "init.sql completed."
 
             echo "--- Running numbered migrations in order ---"
-            MIGRATION_DIR="/root/jmr-portal/db/migration"
+            MIGRATION_DIR="/home/rwpnt/jmr-portal/db/migration"
 
             migrations=\$(find "\$MIGRATION_DIR" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
             echo "Matched migrations: \$migrations"
@@ -131,7 +131,7 @@ jobs:
             set -e
 
             echo "--- Pulling latest code ---"
-            cd /root/jmr-portal
+            cd /home/rwpnt/jmr-portal
             git pull origin main
 
             echo "--- Installing dependencies ---"
@@ -139,15 +139,15 @@ jobs:
             pip install -r backend/requirements.txt --quiet
 
             echo "--- Restarting backend service ---"
-            systemctl restart jmr-backend
+            sudo systemctl restart jmr-backend
 
             echo "--- Verifying service is running ---"
             sleep 3
-            if systemctl is-active --quiet jmr-backend; then
+            if sudo systemctl is-active --quiet jmr-backend; then
               echo "jmr-backend is running."
             else
               echo "ERROR: jmr-backend failed to start!"
-              systemctl status jmr-backend
+              sudo systemctl status jmr-backend
               exit 1
             fi
 

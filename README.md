@@ -1,6 +1,13 @@
 # JMR Portal
 
-An admin management system for a small tuition and Quran-reading service. Tracks parents, their children, monthly fee payments, and overdue balances. Includes a parent-facing portal for viewing enrolment status and payment history.
+An admin management system for a small tuition and Quran-reading service. Tracks parents, their children, monthly fee payments, and overdue balances. Includes a parent-facing portal for viewing enrolment status and payment history. <br>
+Im planning to change framework to ASP.NET to learn more about ASP.NET &#128065; &#128065; <br>
+
+<img width="1470" height="801" alt="image" src="https://github.com/user-attachments/assets/1dc8b06f-0aa9-4d14-a50f-eece7a7028a9" />
+<img width="1470" height="800" alt="image" src="https://github.com/user-attachments/assets/e4ef0794-d64f-4522-b8af-a1ff3a2367fb" />
+<img width="1470" height="803" alt="image" src="https://github.com/user-attachments/assets/b9606b2e-39b6-4b27-a697-8ac5dde481ed" />
+
+
 
 ---
 

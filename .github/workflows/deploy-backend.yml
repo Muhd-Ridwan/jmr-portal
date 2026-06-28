@@ -69,9 +69,10 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i /tmp/vps_key "$VPS_USER@$VPS_HOST" bash << EOF
             set -e
 
-            echo "--- Pulling latest code ---"
+            echo "--- Updating git history and resetting code for migration ---"
             cd /home/rwpnt/jmr-portal
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             export DATABASE_URL="$DATABASE_URL"
 
@@ -130,9 +131,13 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i /tmp/vps_key "$VPS_USER@$VPS_HOST" bash << 'EOF'
             set -e
 
-            echo "--- Pulling latest code ---"
+            echo "--- Updating git history and resetting code for deploy ---"
             cd /home/rwpnt/jmr-portal
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "--- Cleaning up old python cache files ---"
+            find . -type d -name "__pycache__" -exec rm -rf {} +
 
             echo "--- Installing dependencies ---"
             source backend/venv/bin/activate
